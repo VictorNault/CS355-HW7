@@ -22,6 +22,8 @@ int format(){
         array. (for bare bones)
         7. use fwrite to write the file at a specific size in a specific place.
         8. fill the rest of the data section with junk, probably just random chars I keyboard smash. 
+        Tree movement for root directory: data for root directory has list of data block locations
+        for each file right below it. Thus, to get all of the files you have to just go through that list.
     */
     // table = malloc(DISK_SIZE);
     // r_block = malloc(sizeof(struct fat_entry));
