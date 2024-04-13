@@ -7,6 +7,13 @@ struct fat_entry{
     int next;
     int data;
 };
+struct superblock {
+    int size; /* size of blocks in bytes */
+    int table_offset; /* offset of inode region in blocks */
+    int data_offset; /* data region offset in blocks */
+    int swap_offset; /* swap region offset in blocks */
+    int free_block; /* head of free block list, index, if disk is full, -1 */
+};
 
 struct fat_entry* r_block = NULL;
 struct fat_entry** table = NULL;
