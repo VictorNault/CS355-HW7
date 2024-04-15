@@ -66,22 +66,22 @@
     return n->data; // we're there!
 } // get()
 
- void clear(List *l) { // frees all items from list-l
-    struct node *n = l->head;
-    struct node *nxt;
-    while (n != NULL) { // Visit each node and recycle it
-        nxt = n->next;
-        Thread_Props *Data = n->data;
-        free(Data->uc->uc_stack.ss_sp);
-        VALGRIND_STACK_DEREGISTER(Data->stackID);
-        free(Data->uc);
-        free(Data);
-        free(n);
-        n = nxt;
-    }
-    l->head = l->tail = NULL; // All recycled! Now reset.
-    l->size = 0;
-} // clear()
+//  void clear(List *l) { // frees all items from list-l
+//     struct node *n = l->head;
+//     struct node *nxt;
+//     while (n != NULL) { // Visit each node and recycle it
+//         nxt = n->next;
+//         file *Data = n->data;
+//         free(Data->uc->uc_stack.ss_sp);
+//         VALGRIND_STACK_DEREGISTER(Data->stackID);
+//         free(Data->uc);
+//         free(Data);
+//         free(n);
+//         n = nxt;
+//     }
+//     l->head = l->tail = NULL; // All recycled! Now reset.
+//     l->size = 0;
+// } // clear()
 
  void clear_1(List *l) { // frees all nodes from list l
     struct node *n = l->head;
@@ -95,31 +95,3 @@
     l->size = 0;
 } // clear()
 
- void clear_func(List *l) { // frees all nodes from list l
-    struct node *n = l->head;
-    struct node *nxt;
-    while (n != NULL) { // Visit each node and recycle it
-        nxt = n->next;
-        free(n->data);
-        free(n);
-        n = nxt;
-    }
-    l->head = l->tail = NULL; // All recycled! Now reset.
-    l->size = 0;
-} // clear()
-
-// No need for this for this implementation
-/*
-int contains(const List *l, void * item) { // Does list-l have item?
-    struct node *n = l->head;
-    void * node_data;
-    while (n != NULL) {
-        node_data = n->data;
-        if (*node_data == *item) {
-            return 1;
-        }
-        n = n->next;
-    }
-    return 0;
-}
-*/
