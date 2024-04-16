@@ -2,23 +2,9 @@
 #include "file_system.h"
 
 List *open_files = NULL; //linked list for open files
-
-//file entry 
-typedef struct file_entry { 
-    char *pathname; 
-    u_int8_t type; //type of file
-    u_int64_t time; //time of creation in seconds, 8 bytes
-    size_t FAT_entry; //first FAT entry, 2 bytes
-    u_int32_t length; //legnth of file in bytes, 4 bytes
-    u_int8_t uid; //owner's user ID
-    u_int8_t restrictions; //read, write, read/write, append
-    u_int16_t protection; //9 protection bits 
-}file_entry;
-
-//datablock for directory, needs coordination with Hilary
-typedef struct dir_datablock{
-
-}dir_datablock;
+FILE *disk;
+int data_os = 0;
+int fat_os = 0;
 
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
@@ -51,8 +37,22 @@ char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){
     return tokenList;
 }
 
-file_entry *get_file_entry(const char *pathname){
-    //returns the file entry to a specific file
+unsigned long find_offset(int block){
+    //finds the byte offset from 0 for the data block
+    return data_os * BLOCKSIZE + 1024 + block * BLOCKSIZE;
+}
+
+
+file_entry *find_file_from_directory(file_entry *dir, const char *name){
+    //returns the file entry we are looking for in a directory
+    file_entry *cur = dir->head;
+    while(cur){
+        if(strcmp(cur->name,name) == 0){
+            return cur;
+        }
+        cur = cur->next_file;
+    }
+    return NULL;
 }
 
 void update_file_entry(file_entry *file_to_update){
@@ -68,16 +68,48 @@ file *f_open(const char *pathname, const int mode){
     //read, write, read/write, append
     //if file does not exist, create the file in the specified directory
     //returns file pointer if successful
+    fat_entry *fat_e = malloc(sizeof(fat_entry));
+    file_entry *file_e = malloc(sizeof(file_entry));
+    long cur_block = 0;
 
     if(!open_files){ //initialize open files list
         open_files = newList();
     }
+    else if(!disk){
+        disk = fopen("disk_image","w+");
+    }
+    //***needs to read superblock***
 
+    //tokenizing the pathname
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
     
+    //seeking the root directory fat entry
+    fseek(disk,find_offset(fat_os),SEEK_SET); 
+    fread(fat_e,sizeof(fat_e),1,disk);
+    cur_block = fat_e->data;
 
+    //seeking the data block for root
+    fseek(disk,find_offset(cur_block),SEEK_SET);
+    fread(file_e,sizeof(file_e),1,disk);
 
+    //finding file from directory repeatedly
+    for(int i = 0; i < token_length; i++){
+        file_e = find_file_from_directory(file_e,*tokens[i]);
+        //error checking
+        // if(!file_e && i != token_length - 1){
+        //     printf("Directory does not exist, exiting f_open\n");
+        //     return EXIT_FAILURE;
+        // }
+        // else if(!file_e && i == token_length - 1 && mode == READONLY){
+        //     printf("File does not exist in read mode, exiting f_open\n");
+        //     return EXIT_FAILURE;
+        // }
+        // else if(!file_e && i == token_length - 1){
+        //     printf("File does not exist, making file...\n");
+        //     make_file();
+        // }
+    }
 
 
     //cleaning up
@@ -100,7 +132,7 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file *stream){
 }
 
 int f_close(file *stream){
-    //close a file handle, cleans up memory in thr open files list
+    //close a file handle, cleans up memory in the open files list
 }
 
 int f_seek(file *stream, long offset, int position){

@@ -3,17 +3,23 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <string.h>
 #include "List.h"
 #include "node.h"
 #include "file_system.h"
-#include <sys/types.h>
-#include <string.h>
+#include "disk.h"
+
 
 #define READONLY 1
 #define WRITEONLY 2
 #define READWRITE 3
 #define APPEND 4
 
-extern List *open_files;
+#define NAMEBYTES 8
+#define BLOCKSIZE 512
 
+
+extern List *open_files;
+extern FILE *disk;
 #endif
