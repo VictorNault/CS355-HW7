@@ -39,21 +39,28 @@ char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){
 
 unsigned long find_offset(int block){
     //finds the byte offset from 0 for the data block
-    return data_os * BLOCKSIZE + 1024 + block * BLOCKSIZE;
+    return data_os * BLOCKSIZE + BLOCKSIZE + block * BLOCKSIZE;
 }
 
 
-file_entry *find_file_from_directory(file_entry *dir, const char *name){
+file_entry *find_file_from_directory(file_entry *dir, fat_entry *cur_fat, const char *name){
     //returns the file entry we are looking for in a directory
-    file_entry *cur = dir->head;
-    while(cur){
-        if(strcmp(cur->name,name) == 0){
-            return cur;
+    file_entry *cur_file = NULL;
+    int counter = 0;
+    while(counter * sizeof(file_entry) < BLOCKSIZE){
+        counter ++;
+        cur_file = dir + counter;
+        if(strcmp(cur_file->name, name) == 0){
+            return cur_file;
         }
-        cur = cur->next_file;
     }
-    return NULL;
+
+    while(cur_fat->next != -1){
+        cur_file = find_offset(cur_fat->next);
+        //needs to update the cur_fat fat entry
+    }
 }
+    
 
 void update_file_entry(file_entry *file_to_update){
     //updates the file entry in the corresponding FAT entry and the data block header
@@ -168,7 +175,6 @@ file_entry *f_opendir(const char *pathname){
     //seeking the root directory fat entry
     fseek(disk,find_offset(fat_os),SEEK_SET); 
     fread(fat_e,sizeof(fat_e),1,disk);
-    cur_block = fat_e->data;
 
     //seeking the data block for root
     fseek(disk,find_offset(cur_block),SEEK_SET);

@@ -14,13 +14,13 @@ typedef struct file{
     size_t FAT_entry; //first FAT entry
 }file;
 
-//directory handle
-typedef struct dir{ 
-    char *name;
-    List *files; //linked list of files in the directory
-    file_entry *current_file; //pointer to current file for readdir
-    size_t FAT_entry; //first FAT entry
-}dir;
+// //directory handle
+// typedef struct dir{ 
+//     char *name;
+//     List *files; //linked list of files in the directory
+//     file_entry *current_file; //pointer to current file for readdir
+//     size_t FAT_entry; //first FAT entry
+// }dir;
 
 file *f_open(const char *pathname, const int mode);
 size_t f_read(void *ptr, size_t size, size_t nmemb, file *stream);
