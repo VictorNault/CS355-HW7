@@ -16,6 +16,8 @@
 #define READWRITE 3
 #define APPEND 4
 
+
+#define NUMOPENFILES 50
 #define NAMEBYTES 8
 #define BLOCKSIZE 512
 

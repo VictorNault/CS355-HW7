@@ -1,7 +1,7 @@
 #include "common.h"
 #include "file_system.h"
 
-List *open_files = NULL; //linked list for open files
+file_entry open_files[NUMOPENFILES]; //array for open files
 FILE *disk;
 int data_os = 0;
 int fat_os = 0;
@@ -72,10 +72,7 @@ file *f_open(const char *pathname, const int mode){
     file_entry *file_e = malloc(sizeof(file_entry));
     long cur_block = 0;
 
-    if(!open_files){ //initialize open files list
-        open_files = newList();
-    }
-    else if(!disk){
+    if(!disk){
         disk = fopen("disk_image","w+");
     }
     //***needs to read superblock***
@@ -153,15 +150,54 @@ int f_remove(file *stream){
     //returns EXIT_SUCCESS if successfully deleted or error
 }
 
-dir *f_opendir(const char *name){
+file_entry *f_opendir(const char *pathname){
     //opens a directory file for reading and returns a directory handle
+    fat_entry *fat_e = malloc(sizeof(fat_entry));
+    file_entry *file_e = malloc(sizeof(file_entry));
+    long cur_block = 0;
+
+    if(!disk){
+        disk = fopen("disk_image","w+");
+    }
+    //***needs to read superblock***
+
+    //tokenizing the pathname
+    int token_length = 0;
+    char** tokens = tokenize(pathname,&token_length,"/");
+    
+    //seeking the root directory fat entry
+    fseek(disk,find_offset(fat_os),SEEK_SET); 
+    fread(fat_e,sizeof(fat_e),1,disk);
+    cur_block = fat_e->data;
+
+    //seeking the data block for root
+    fseek(disk,find_offset(cur_block),SEEK_SET);
+    fread(file_e,sizeof(file_e),1,disk);
+
+    //finding file from directory repeatedly
+    for(int i = 0; i < token_length; i++){
+        file_e = find_file_from_directory(file_e,*tokens[i]);
+        //error checking
+        // if(!file_e && i != token_length - 1){
+        //     printf("Directory does not exist, exiting f_open\n");
+        //     return EXIT_FAILURE;
+        // }
+        // else if(!file_e && i == token_length - 1 && mode == READONLY){
+        //     printf("File does not exist in read mode, exiting f_open\n");
+        //     return EXIT_FAILURE;
+        // }
+        // else if(!file_e && i == token_length - 1){
+        //     printf("File does not exist, making file...\n");
+        //     make_file();
+        // }
+    }
 }
 
-file_entry *f_readdir(dir *directory){
+file_entry *f_readdir(file_entry *directory){
     //returns the next file_entry in the directory, updates the pointer to the current file
 }
 
-int f_closedir(dir *stream){
+int f_closedir(file_entry *stream){
     //close an open directory file, cleans up memory in the open files list
 }
 
