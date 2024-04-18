@@ -1,46 +1,95 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include <sys/mman.h>
+#include <string.h>
+#include <limits.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #define DISK_SIZE 1000000
 #define N_BLOCKS 2
-struct fat_entry{
-    int next;
-    int data;
-};
+
 struct superblock {
     int size; /* size of blocks in bytes */
     int table_offset; /* offset of FAT table region in blocks */
     int data_offset; /* data region offset in blocks */
     int swap_offset; /* swap region offset in blocks */
     int free_block; /* head of free block list, index, if disk is full, -1 */
+    char* padding;
 };
 
-struct fat_entry* r_block = NULL;
-struct fat_entry** table = NULL;
-int format(){
-    /*
-        1. establish the (fat) table with malloc(DISK_SIZE)
-        2. set table[0] to the r_block, which is the root block.
-        3. create a file if table[1] is NULL
-        4. table[1] data = &file (file created using fopen).
-        5. the header contains blocks of data from the data region, along with
-        the location in the FAT table. 
-        6. the last two blocks in the table are set to -1. r_block and the new file point to them in their 'next'
-        array. (for bare bones)
-        7. use fwrite to write the file at a specific size in a specific place.
-        8. fill the rest of the data section with 0s to symbolize the fact that they are empty. 
-        Tree movement for root directory: data for root directory has list of data block locations
-        for each file right below it. Thus, to get all of the files you have to just go through that list.
-    */
-    // table = malloc(DISK_SIZE);
-    // r_block = malloc(sizeof(struct fat_entry));
-    // table[0] = r_block;
-    // r_block->next[0] = 1;
-    // r_block->next[1] = 3;
-    return 0;
+    struct file_entry; 
+
+    typedef struct file_entry { 
+
+    char *name[8];
+
+    u_int16_t FAT_entry; //first FAT entry, 2 bytes
+
+    u_int32_t length; //legnth of file in bytes, 4 bytes
+
+    u_int8_t uid; //owner's user ID
+
+    u_int16_t protection; //9 protection bits 
+
+    struct file_entry *next_file; //pointer to next file, if NULL, this is the last file in the directory
+
+} file_entry;
+
+
+//directory entry
+
+typedef struct dir_entry{
+
+    char *name[8];
+
+    u_int16_t FAT_entry; //FAT entry for the directory
+
+    u_int8_t uid; //owner's user ID
+
+    u_int16_t protection; //9 protection bits 
+
+    file_entry *head; //head of the file linked list (all the files in the directory)
+
+    file_entry *tail; //tail of the linked list
+
+} dir_entry;
+
+struct dic{
+    FILE* file;
+    int file_ptr[N_BLOCKS]; 
+};
+struct superblock s_block;
+u_int16_t table[4]; //eventually this will contain 4096 entries, but not right now!
+file_entry r_block;
+int test;
+int format(char* filename, int dsize){
+    r_block.FAT_entry = 0;
+    r_block.next_file = NULL;
+    //table[0] = r_block;
+    for(int i = 0; i < 4; i++){
+        table[i] = -1;
+    }
+    
+    s_block.data_offset = 16;
+    
+    s_block.table_offset = 0; //from end of superblock. Change to 1 if instead the table offset is from beginning of file. 
+    s_block.swap_offset = (512 * 4); //Is this actually needed? If the number is different, change it as you will. 
+    s_block.free_block = 1953;
+    s_block.padding = malloc(512 - sizeof(struct superblock));
+    test = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0666);
+    
+    ftruncate(test, dsize * DISK_SIZE);
+    write(test, &s_block, 512);
+    close(test);
+    free(s_block.padding);
 }
 
-int main(){
-    format();
+int main(int argc, char* argv[]){
+    s_block.size = 512;
+    format(argv[1], 1);
     return 0;
 }
