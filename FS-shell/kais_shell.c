@@ -36,7 +36,6 @@ char ** splitSemiColon(char * stringToSplit, int * numCmds){
 
 }
 
-
 char ** splitStringFromDelims(char * stringToSplit, int * cmdLen, int * background){
     *background = 0; 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
