@@ -3,6 +3,7 @@
         "string.h": "c",
         "file_system.h": "c",
         "stdlib.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "types.h": "c"
     }
 }

@@ -30,10 +30,11 @@ int f_seek(file *stream, long offset, int position);
 void f_rewind(file *stream);
 int f_stat(file *stream, file_entry *stat_buffer);
 int f_remove(file *stream);
-dir *f_opendir(const char *name);
-file_entry *f_readdir(dir *directory);
-int f_closedir(dir *stream);
+file_entry *f_opendir(const char *name);
+file_entry *f_readdir(file_entry *directory);
+int f_closedir(file_entry *stream);
 int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);
+extern int f_error;
 
 #endif 

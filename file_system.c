@@ -1,10 +1,12 @@
 #include "common.h"
 #include "file_system.h"
 
-file_entry open_files[NUMOPENFILES]; //array for open files
+file_entry open_files[NUM_OPEN_FILES]; //array for open files
 FILE *disk;
 int data_os = 0;
 int fat_os = 0;
+fat_entry fat_table[NUM_FAT_ENTRIES];
+int f_error = EXIT_SUCCESS;
 
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
@@ -39,26 +41,35 @@ char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){
 
 unsigned long find_offset(int block){
     //finds the byte offset from 0 for the data block
-    return data_os * BLOCKSIZE + BLOCKSIZE + block * BLOCKSIZE;
+    return data_os * BLOCK_SIZE + BLOCK_SIZE + block * BLOCK_SIZE;
 }
 
+fat_entry *find_next_fat(fat_entry *current){
+    int index = current->next;
+    if(index == -1){
+        return NULL;
+    }
+    return &fat_table[index];
+}
 
-file_entry *find_file_from_directory(file_entry *dir, fat_entry *cur_fat, const char *name){
+file_entry *find_file_from_directory(file_entry *dir, fat_entry *cur_fat, char *name){
     //returns the file entry we are looking for in a directory
-    file_entry *cur_file = NULL;
+    file_entry *cur_file = dir;
     int counter = 0;
-    while(counter * sizeof(file_entry) < BLOCKSIZE){
-        counter ++;
-        cur_file = dir + counter;
-        if(strcmp(cur_file->name, name) == 0){
-            return cur_file;
+    do{
+        while(counter * sizeof(file_entry) < BLOCK_SIZE){
+            counter ++;
+            cur_file = cur_file + 1;
+            if(strcmp(cur_file->name, name) == 0){
+                return cur_file;
+            }
         }
-    }
+        cur_file = (file_entry*)find_offset(cur_fat->next);
+        cur_fat = find_next_fat(cur_fat);
+        counter = 0;
+    }while(cur_fat);
 
-    while(cur_fat->next != -1){
-        cur_file = find_offset(cur_fat->next);
-        //needs to update the cur_fat fat entry
-    }
+    return NULL;
 }
     
 
@@ -75,6 +86,7 @@ file *f_open(const char *pathname, const int mode){
     //read, write, read/write, append
     //if file does not exist, create the file in the specified directory
     //returns file pointer if successful
+    //opens a directory file for reading and returns a file_entry
     fat_entry *fat_e = malloc(sizeof(fat_entry));
     file_entry *file_e = malloc(sizeof(file_entry));
     long cur_block = 0;
@@ -90,31 +102,43 @@ file *f_open(const char *pathname, const int mode){
     
     //seeking the root directory fat entry
     fseek(disk,find_offset(fat_os),SEEK_SET); 
-    fread(fat_e,sizeof(fat_e),1,disk);
-    cur_block = fat_e->data;
+    fread(fat_e,sizeof(*fat_e),1,disk);
 
     //seeking the data block for root
     fseek(disk,find_offset(cur_block),SEEK_SET);
-    fread(file_e,sizeof(file_e),1,disk);
+    fread(file_e,sizeof(*file_e),1,disk);
 
     //finding file from directory repeatedly
     for(int i = 0; i < token_length; i++){
-        file_e = find_file_from_directory(file_e,*tokens[i]);
+        file_e = find_file_from_directory(file_e,fat_e,tokens[i]);
+        
         //error checking
-        // if(!file_e && i != token_length - 1){
-        //     printf("Directory does not exist, exiting f_open\n");
-        //     return EXIT_FAILURE;
-        // }
-        // else if(!file_e && i == token_length - 1 && mode == READONLY){
-        //     printf("File does not exist in read mode, exiting f_open\n");
-        //     return EXIT_FAILURE;
-        // }
+        if(!file_e && i < token_length - 1){
+            printf("Directory does not exist, exiting f_open\n");
+            f_error = FILE_NOT_FOUND;
+            return NULL;
+            
+        }
+        else if(!file_e && i == token_length - 1 && mode == READ_ONLY){
+            printf("File does not exist in read mode, exiting f_open\n");
+            f_error = FILE_NOT_FOUND;
+            return NULL;
+        }
         // else if(!file_e && i == token_length - 1){
         //     printf("File does not exist, making file...\n");
         //     make_file();
         // }
-    }
 
+        //update fat_entry
+        fat_e = &fat_table[file_e->FAT_entry];
+    }
+    
+    //making a new file struct
+    file *to_return = malloc(sizeof(file));
+    to_return->cur_rindex = 0; 
+    to_return->cur_windex = 0;
+    to_return->name = tokens[token_length-1];
+    to_return->size = file_e->size;
 
     //cleaning up
     for(int i = 0; i < token_length; i++){
@@ -124,6 +148,7 @@ file *f_open(const char *pathname, const int mode){
     return NULL;
     
 }
+
 
 size_t f_read(void *ptr, size_t size, size_t nmemb, file *stream){
     //read the specified number of bytes from a file handle at the current position. 
@@ -158,7 +183,7 @@ int f_remove(file *stream){
 }
 
 file_entry *f_opendir(const char *pathname){
-    //opens a directory file for reading and returns a directory handle
+    //opens a directory file for reading and returns a file_entry
     fat_entry *fat_e = malloc(sizeof(fat_entry));
     file_entry *file_e = malloc(sizeof(file_entry));
     long cur_block = 0;
@@ -174,29 +199,31 @@ file_entry *f_opendir(const char *pathname){
     
     //seeking the root directory fat entry
     fseek(disk,find_offset(fat_os),SEEK_SET); 
-    fread(fat_e,sizeof(fat_e),1,disk);
+    fread(fat_e,sizeof(*fat_e),1,disk);
 
     //seeking the data block for root
     fseek(disk,find_offset(cur_block),SEEK_SET);
-    fread(file_e,sizeof(file_e),1,disk);
+    fread(file_e,sizeof(*file_e),1,disk);
 
     //finding file from directory repeatedly
     for(int i = 0; i < token_length; i++){
-        file_e = find_file_from_directory(file_e,*tokens[i]);
-        //error checking
-        // if(!file_e && i != token_length - 1){
-        //     printf("Directory does not exist, exiting f_open\n");
-        //     return EXIT_FAILURE;
-        // }
-        // else if(!file_e && i == token_length - 1 && mode == READONLY){
-        //     printf("File does not exist in read mode, exiting f_open\n");
-        //     return EXIT_FAILURE;
-        // }
-        // else if(!file_e && i == token_length - 1){
-        //     printf("File does not exist, making file...\n");
-        //     make_file();
-        // }
+        file_e = find_file_from_directory(file_e,fat_e,tokens[i]);
+        //update fat_entry
+        if(!file_e){
+            printf("Directory not found, exiting f_opendir\n");
+            f_error = FILE_NOT_FOUND;
+            return NULL;
+        }
+        fat_e = &fat_table[file_e->FAT_entry];
     }
+    return file_e;
+
+    //cleaning up
+    for(int i = 0; i < token_length; i++){
+        free(tokens[i]);
+    }
+    free(tokens);
+    return NULL;
 }
 
 file_entry *f_readdir(file_entry *directory){
@@ -217,5 +244,5 @@ int f_rmdir(const char *pathname){
 }
 
 int main(){
-    f_open("/usr/bjiang/home/Desktop/cs.txt",READONLY);
+
 }
