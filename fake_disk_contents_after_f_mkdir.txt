@@ -1,0 +1,43 @@
+Reading symbols from ./readfakedisk2...
+(gdb) break 63
+Breakpoint 1 at 0x11df: file readfakedisk_after_f_mkdir.c, line 63.
+(gdb) run
+Starting program: /media/victor/Auxillary/TEMP 10/hw7/readfakedisk2 
+
+Breakpoint 1, main () at readfakedisk_after_f_mkdir.c:63
+63	    global_read_fp = fopen(FAKEDISK_NAME, "rb");
+(gdb) next
+67	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
+(gdb) next
+71	    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
+(gdb) print my_superblock
+$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, 
+  fat_offset = 1, padding = '\000' <repeats 491 times>}
+(gdb) next
+75	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print my_fattable
+$2 = {indicies = {-1, -1, -2, -1, -2 <repeats 2044 times>}}
+(gdb) next
+78	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print root_dir
+$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, 
+  size = 21, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
+  data_in_first_block = "\001\000\000\000\003", '\000' <repeats 410 times>}
+(gdb) next
+81	    fread(&new_dir, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print next_dir
+$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, 
+  size = 17, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
+  data_in_first_block = '\000' <repeats 415 times>}
+(gdb) next
+82	    fread(&new_dir, BLOCK_BYTES, 1, global_read_fp);
+(gdb) next
+92	    dummy = 12;
+(gdb) print new_dir
+$5 = {name = "mde_dir", is_directory = 1 '\001', FAT_entry = 3, size = 17, 
+  uid = 101 'e', restrictions = 3 '\003', protection = 202, 
+  data_in_first_block = "\000\000\000\000\001\001\000\000p\000\000\000\b\000\000\000\000\000\000\000\001", '\000' <repeats 15 times>, "|\000\000\000w\000\000\000o\000\000\000c\000\000\000\221\345\267S\337\177\000\000\200k\305S\337\177\000\000\377\000\000\000\000\000\000\000\000\020\000\000\000\000\000\000\260\377\377\377\377\377\377\377@@\357\232\027V\000\000@@\357\232\027V\000\000\200\264)\233\027V\000\000\200\304)\233\027V\000\000\000\020\000\000\000\000\000\000\000\020\000\000\000\000\000\000\240\262)\233\027V\000\000\035\275\256S\337\177\000\000\001\003\001\000\000\000\000\000\222.\006\000\000\000\000\000\001\000\000\000\000\000\000\000\377\201\000\000\350\003\000\000\350\003", '\000' <repeats 15 times>...}
+(gdb) c
+Continuing.
+[Inferior 1 (process 25489) exited normally]
+
