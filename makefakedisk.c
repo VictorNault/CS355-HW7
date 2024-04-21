@@ -119,9 +119,21 @@ int main() {
     //init_indicies(next_dir.data_in_first_block, FILE_AFTER_HEADER_BYTES, 0);
     my_fattable.indicies[1] = -1;
 
-    // Put next directory in root directory
-    root_dir.data_in_first_block[0] = next_dir.FAT_entry;
+    // . and .. for root
+    root_dir.data_in_first_block[0] = 0; // root_dir is always at block 0
     root_dir.size = root_dir.size + sizeof(int);
+    root_dir.data_in_first_block[1] = -1;
+    root_dir.size = root_dir.size + sizeof(int);
+
+    // Put next directory in root directory
+    root_dir.data_in_first_block[3] = next_dir.FAT_entry;
+    root_dir.size = root_dir.size + sizeof(int);
+
+    // . and .. for next directory
+    next_dir.data_in_first_block[0] = 1;
+    next_dir.size = next_dir.size + sizeof(int);
+    next_dir.data_in_first_block[1] = 0;
+    next_dir.size = next_dir.size + sizeof(int);
 
     // write fat table and directories
     fwrite(&my_fattable, FATTABLE_BYTES, 1, global_write_fp);
