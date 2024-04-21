@@ -11,7 +11,7 @@
 #define MYDIR_BYTES 512
 #define BLOCK_BYTES 512
 #define SUPERBLOCK_PADDING 492
-#define FILE_AFTER_HEADER_BYTES 512 - (8 + (3 * sizeof(u_int8_t)) + (2 * sizeof(u_int8_t)) +  sizeof(u_int32_t))
+#define FILE_AFTER_HEADER_BYTES 512 - 32
 #define TABLE_OFFSET 1
 #define TABLE_BLOCKS 16
 #define FIXED_FREEBLOCK 2
@@ -24,6 +24,7 @@
 #define READ_WRITE 3
 #define APPEND 4
 #define FREE_DATABLOCK_EXTRA_BYTES 508
+#define PROT_BYTES 16
 
 FILE * global_write_fp;
 
@@ -49,8 +50,8 @@ typedef struct file_entry {
     u_int16_t FAT_entry; //first FAT entry, 2 bytes
     u_int32_t size; //legnth of file in bytes, 4 bytes
     u_int8_t uid; //owner's user ID
-    u_int8_t restrictions; //read, write, read/write, append
-    u_int16_t protection; //9 protection bits 
+    //u_int8_t restrictions; //read, write, read/write, append
+    u_int8_t protection[PROT_BYTES]; //9 protection bits 
     char data_in_first_block[FILE_AFTER_HEADER_BYTES];
 }file_entry;
 
@@ -100,8 +101,14 @@ int main() {
     root_dir.FAT_entry = 0;
     root_dir.size = NAME_BYTES + (3 * sizeof(u_int8_t)) + (2 * sizeof(u_int8_t)) +  sizeof(u_int32_t);
     root_dir.uid = 101;
-    root_dir.restrictions = READ_WRITE;
-    root_dir.protection = 202;
+    //root_dir.restrictions = READ_WRITE;
+    //root_dir.protection = 202;
+    root_dir.protection[0] = TRUE;
+    root_dir.protection[1] = TRUE;
+    root_dir.protection[2] = TRUE;
+    for (int i = 3; i < 10; i++) {
+        root_dir.protection[i] = FALSE;
+    }
     //root_dir.data_in_first_block = header_padding;
     //init_indicies(root_dir.data_in_first_block, FILE_AFTER_HEADER_BYTES, 0);
     my_fattable.indicies[0] = -1;
@@ -113,8 +120,15 @@ int main() {
     next_dir.FAT_entry = 1;
     next_dir.size = NAME_BYTES + (3 * sizeof(u_int8_t)) + (2 * sizeof(u_int8_t)) +  sizeof(u_int32_t);
     next_dir.uid = 101;
-    next_dir.restrictions = READ_WRITE;
-    next_dir.protection = 202;
+    //next_dir.restrictions = READ_WRITE;
+    //next_dir.protection = 202;
+    next_dir.protection[0] = TRUE;
+    next_dir.protection[1] = TRUE;
+    next_dir.protection[2] = TRUE;
+    for (int i = 3; i < 10; i++) {
+        next_dir.protection[i] = FALSE;
+    }
+
     //next_dir.data_in_first_block = header_padding;
     //init_indicies(next_dir.data_in_first_block, FILE_AFTER_HEADER_BYTES, 0);
     my_fattable.indicies[1] = -1;
