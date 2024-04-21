@@ -11,7 +11,7 @@
 #define MYDIR_BYTES 512
 #define BLOCK_BYTES 512
 #define SUPERBLOCK_PADDING 492
-#define FILE_AFTER_HEADER_BYTES 416
+#define FILE_AFTER_HEADER_BYTES 512 - (8 + (3 * sizeof(u_int8_t)) + (2 * sizeof(u_int8_t)) +  sizeof(u_int32_t))
 #define TABLE_OFFSET 1
 #define TABLE_BLOCKS 16
 #define FIXED_FREEBLOCK 2
@@ -98,7 +98,7 @@ int main() {
     strcpy(root_dir.name, "root");
     root_dir.is_directory = TRUE;
     root_dir.FAT_entry = 0;
-    root_dir.size = NAME_BYTES + 8 + 16 + 32 + 8 + 8 + 32;
+    root_dir.size = NAME_BYTES + (3 * sizeof(u_int8_t)) + (2 * sizeof(u_int8_t)) +  sizeof(u_int32_t);
     root_dir.uid = 101;
     root_dir.restrictions = READ_WRITE;
     root_dir.protection = 202;
@@ -111,7 +111,7 @@ int main() {
     strcpy(next_dir.name, "next");
     next_dir.is_directory = TRUE;
     next_dir.FAT_entry = 1;
-    next_dir.size = NAME_BYTES + 8 + 16 + 32 + 8 + 8 + 32;
+    next_dir.size = NAME_BYTES + (3 * sizeof(u_int8_t)) + (2 * sizeof(u_int8_t)) +  sizeof(u_int32_t);
     next_dir.uid = 101;
     next_dir.restrictions = READ_WRITE;
     next_dir.protection = 202;

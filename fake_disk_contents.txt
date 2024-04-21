@@ -1,23 +1,38 @@
 Reading symbols from ./readfakedisk...
-(gdb) break 88
-Breakpoint 1 at 0x12cb: file readfakedisk.c, line 88.
+(gdb) break 67
+Breakpoint 1 at 0x11f9: file readfakedisk.c, line 67.
 (gdb) run
 Starting program: /media/victor/Auxillary/TEMP 10/hw7/readfakedisk 
 
-Breakpoint 1, main () at readfakedisk.c:88
-88	    dummy = 12;
+Breakpoint 1, main () at readfakedisk.c:67
+67	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
+(gdb) next
+71	    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
 (gdb) print my_superblock
 $1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, fat_offset = 1, padding = '\000' <repeats 491 times>}
+(gdb) next
+75	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print my_fattable
 $2 = {indicies = {-1, -1, -2 <repeats 2046 times>}}
+(gdb) next
+78	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, size = 116, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
+$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, size = 21, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
   data_in_first_block = "\001", '\000' <repeats 414 times>}
+(gdb) next
+82	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print next_dir
-$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, size = 112, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
+$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, size = 17, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
   data_in_first_block = '\000' <repeats 415 times>}
+(gdb) next
+85	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print freeblock1
 $5 = {next = 3, extra = '\000' <repeats 507 times>}
+(gdb) next
+88	    dummy = 12;
 (gdb) print freeblock2
 $6 = {next = 4, extra = '\000' <repeats 507 times>}
+(gdb) c
+Continuing.
+[Inferior 1 (process 24450) exited normally]
 
