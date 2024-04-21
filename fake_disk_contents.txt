@@ -1,10 +1,12 @@
 Reading symbols from ./readfakedisk...
-(gdb) break 67
-Breakpoint 1 at 0x11f9: file readfakedisk.c, line 67.
+(gdb) break 63
+Breakpoint 1 at 0x11df: file readfakedisk.c, line 63.
 (gdb) run
-Starting program: /media/victor/Auxillary/TEMP 10/hw7/readfakedisk 
+Starting program: /homes/vnault/Desktop/CS355-HW7/readfakedisk 
 
-Breakpoint 1, main () at readfakedisk.c:67
+Breakpoint 1, main () at readfakedisk.c:63
+63	    global_read_fp = fopen(FAKEDISK_NAME, "rb");
+(gdb) next
 67	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
 (gdb) next
 71	    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
@@ -17,13 +19,12 @@ $2 = {indicies = {-1, -1, -2 <repeats 2046 times>}}
 (gdb) next
 78	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, size = 21, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = "\001", '\000' <repeats 414 times>}
+$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, size = 29, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
+  data_in_first_block = "\000\377\000\001", '\000' <repeats 411 times>}
 (gdb) next
 82	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print next_dir
-$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, size = 17, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = '\000' <repeats 415 times>}
+$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, size = 25, uid = 101 'e', restrictions = 3 '\003', protection = 202, data_in_first_block = "\001", '\000' <repeats 414 times>}
 (gdb) next
 85	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print freeblock1
@@ -34,5 +35,5 @@ $5 = {next = 3, extra = '\000' <repeats 507 times>}
 $6 = {next = 4, extra = '\000' <repeats 507 times>}
 (gdb) c
 Continuing.
-[Inferior 1 (process 24450) exited normally]
+[Inferior 1 (process 1041206) exited normally]
 
