@@ -10,7 +10,7 @@
 #define MYDIR_BYTES 512
 #define BLOCK_BYTES 512
 #define SUPERBLOCK_PADDING 492
-#define FILE_AFTER_HEADER_BYTES 416
+#define FILE_AFTER_HEADER_BYTES 512 - 32
 #define TABLE_OFFSET 1
 #define TABLE_BLOCKS 16
 #define FIXED_FREEBLOCK 2
@@ -23,6 +23,7 @@
 #define READ_WRITE 3
 #define APPEND 4
 #define FREE_DATABLOCK_EXTRA_BYTES 508
+#define PROT_BYTES 16
 
 
 FILE * global_read_fp;
@@ -49,8 +50,8 @@ typedef struct file_entry {
     u_int16_t FAT_entry; //first FAT entry, 2 bytes
     u_int32_t size; //legnth of file in bytes, 4 bytes
     u_int8_t uid; //owner's user ID
-    u_int8_t restrictions; //read, write, read/write, append
-    u_int16_t protection; //9 protection bits 
+    //u_int8_t restrictions; //read, write, read/write, append
+    u_int8_t protection[PROT_BYTES]; //9 protection bits 
     char data_in_first_block[FILE_AFTER_HEADER_BYTES];
 }file_entry;
 
