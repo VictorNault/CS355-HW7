@@ -1,41 +1,39 @@
 Reading symbols from ./readfakedisk...
 (gdb) break 67
-Breakpoint 1 at 0x11ff: file readfakedisk.c, line 67.
+Breakpoint 1 at 0x11ff: file readfakedisk.c, line 68.
 (gdb) run
 Starting program: /homes/vnault/Desktop/CS355-HW7/readfakedisk 
 
-Breakpoint 1, main () at readfakedisk.c:67
-67	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
+Breakpoint 1, main () at readfakedisk.c:68
+68	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
 (gdb) next
-71	    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
+72	    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
 (gdb) print my_superblock
-$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, 
-  fat_offset = 1, padding = '\000' <repeats 491 times>}
+$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, fat_offset = 1, padding = '\000' <repeats 491 times>}
 (gdb) next
-75	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
+76	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print my_fattable
 $2 = {indicies = {-1, -1, -2 <repeats 2046 times>}}
 (gdb) next
-78	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
+79	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, 
-  size = 29, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = "\000\000\000\000\377\000\000\000\001", '\000' <repeats 406 times>}
+$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, size = 29, uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>, 
+  data_in_first_block = "\000\000\000\000\377\000\000\000\001", '\000' <repeats 470 times>}
 (gdb) next
-82	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
+83	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print next_dir
-$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, 
-  size = 25, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = "\001", '\000' <repeats 414 times>}
+$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, size = 25, uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>, 
+  data_in_first_block = "\001", '\000' <repeats 478 times>}
 (gdb) next
-85	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
+86	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print freeblock1
 $5 = {next = 3, extra = '\000' <repeats 507 times>}
 (gdb) next
-88	    dummy = 12;
+89	    dummy = 12;
 (gdb) print freeblock2
 $6 = {next = 4, extra = '\000' <repeats 507 times>}
 (gdb) c
 Continuing.
-[Inferior 1 (process 1043154) exited normally]
+[Inferior 1 (process 1046784) exited normally]
+
 
