@@ -1,12 +1,15 @@
 #include "common.h"
 #include "file_system.h"
 
-file_entry open_files[NUM_OPEN_FILES]; //array for open files
+file_handle *open_files[NUM_OPEN_FILES]; //array for open files
 FILE *disk;
-int data_os = 0;
-int fat_os = 0;
-fat_entry fat_table[NUM_FAT_ENTRIES];
+fat_entry fat_table[TOTAL_BLOCKS];
 int f_error = EXIT_SUCCESS;
+int is_initialized = 0;
+int table_offset; /* offset of FAT table region in blocks */
+int data_offset; /* data region offset in blocks */
+int free_block; /* head of free block list, index, if disk is full, -1 */
+int fat_offset;
 
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
@@ -41,7 +44,7 @@ char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){
 
 unsigned long find_offset(int block){
     //finds the byte offset from 0 for the data block
-    return data_os * BLOCK_SIZE + BLOCK_SIZE + block * BLOCK_SIZE;
+    return data_offset * BLOCK_SIZE + block * BLOCK_SIZE;
 }
 
 fat_entry *find_next_fat(fat_entry *current){
@@ -52,9 +55,10 @@ fat_entry *find_next_fat(fat_entry *current){
     return &fat_table[index];
 }
 
-file_entry *find_file_from_directory(file_entry *dir, fat_entry *cur_fat, char *name){
+file_entry *find_file_from_directory(file_entry *dir, fat_entry *fat, char *name){
     //returns the file entry we are looking for in a directory
     file_entry *cur_file = dir;
+    fat_entry *cur_fat = fat;
     int counter = 0;
     do{
         while(counter * sizeof(file_entry) < BLOCK_SIZE){
@@ -72,16 +76,40 @@ file_entry *find_file_from_directory(file_entry *dir, fat_entry *cur_fat, char *
     return NULL;
 }
     
-
 void update_file_entry(file_entry *file_to_update){
     //updates the file entry in the corresponding FAT entry and the data block header
 }
 
-// void terminate(){
-//     clear(open_files);
-// }
+void f_terminate(){
+    fclose(disk);
+    is_initialized = 0;
+}
 
-file *f_open(const char *pathname, const int mode){
+void f_init(){ //initializing the disk
+    if(!is_initialized){
+        //reading disk
+        disk = fopen("fake_disk","rb+");
+
+        //reading superblock
+        superblock *sb = malloc(sizeof(superblock));
+        fread(sb,sizeof(superblock),1,disk);
+        //assigning globals
+        table_offset = sb->table_offset;
+        data_offset = sb->data_offset;
+        free_block = sb->free_block;
+        fat_offset = sb->fat_offset;
+        free(sb);
+
+        //reading fat table
+        fseek(disk,find_offset(table_offset),SEEK_SET);
+        fread(fat_table,TOTAL_BLOCKS*sizeof(fat_entry),1,disk);
+        is_initialized = 1;
+    }
+    assert(disk);
+    assert(is_initialized);
+}
+
+file_handle *f_open(const char *pathname, const int mode){
     //open a file with specified access mode
     //read, write, read/write, append
     //if file does not exist, create the file in the specified directory
@@ -91,21 +119,15 @@ file *f_open(const char *pathname, const int mode){
     file_entry *file_e = malloc(sizeof(file_entry));
     long cur_block = 0;
 
-    if(!disk){
-        disk = fopen("disk_image","w+");
-    }
-    //***needs to read superblock***
-
     //tokenizing the pathname
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
     
     //seeking the root directory fat entry
-    fseek(disk,find_offset(fat_os),SEEK_SET); 
-    fread(fat_e,sizeof(*fat_e),1,disk);
+    fat_e = &fat_table[0];
 
     //seeking the data block for root
-    fseek(disk,find_offset(cur_block),SEEK_SET);
+    fseek(disk,find_offset(0),SEEK_SET);
     fread(file_e,sizeof(*file_e),1,disk);
 
     //finding file from directory repeatedly
@@ -130,54 +152,70 @@ file *f_open(const char *pathname, const int mode){
         // }
 
         //update fat_entry
-        fat_e = &fat_table[file_e->FAT_entry];
+        fat_e = &fat_table[file_e->first_FAT_idx];
     }
     
-    //making a new file struct
-    file *to_return = malloc(sizeof(file));
+    //making a new file handle
+    file_handle *to_return = malloc(sizeof(file_handle));
     to_return->cur_rindex = 0; 
     to_return->cur_windex = 0;
-    to_return->name = tokens[token_length-1];
+    to_return->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+    to_return->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+    to_return->name = file_e->name;
     to_return->size = file_e->size;
+    to_return->first_FAT_idx = file_e->first_FAT_idx;
+
+    //putting the file handle into the open_files array
+    int status = 0;
+    for(int i = 0; i < NUM_OPEN_FILES; i++){
+        if(!open_files[i]){
+            open_files[i] = to_return;
+            status = 1;
+            break;
+        }
+    }
+    if(!status){
+        printf("Max number of open files reached\n");
+        return NULL;
+    }
 
     //cleaning up
     for(int i = 0; i < token_length; i++){
         free(tokens[i]);
     }
     free(tokens);
-    return NULL;
+    return to_return;
     
 }
 
-
-size_t f_read(void *ptr, size_t size, size_t nmemb, file *stream){
+size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //read the specified number of bytes from a file handle at the current position. 
     //returns the number of bytes read, or an error.
 }
 
-size_t f_write(const void *ptr, size_t size, size_t nmemb, file *stream){
+size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //write some bytes to a file handle at the current position. 
     //Returns the number of bytes written, or an error.
 }
 
-int f_close(file *stream){
+int f_close(file_handle *stream){
     //close a file handle, cleans up memory in the open files list
 }
 
-int f_seek(file *stream, long offset, int position){
+int f_seek(file_handle *stream, long offset, int position){
     //move pointers to a specified position in a file
 }
 
-void f_rewind(file *stream){
+void f_rewind(file_handle *stream){
     //move pointers to the start of the file
 }
 
-int f_stat(file *stream, file_entry *stat_buffer){
+int f_stat(file_handle *stream, file_entry *stat_buffer){
     //retrieve information about a file
     //updates the stat_buffer struct
 }
 
-int f_remove(file *stream){
+int f_remove(file_handle *stream){
     //delete a file from disk
     //returns EXIT_SUCCESS if successfully deleted or error
 }
@@ -188,17 +226,12 @@ file_entry *f_opendir(const char *pathname){
     file_entry *file_e = malloc(sizeof(file_entry));
     long cur_block = 0;
 
-    if(!disk){
-        disk = fopen("disk_image","w+");
-    }
-    //***needs to read superblock***
-
     //tokenizing the pathname
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
     
     //seeking the root directory fat entry
-    fseek(disk,find_offset(fat_os),SEEK_SET); 
+    fseek(disk,find_offset(fat_offset),SEEK_SET); 
     fread(fat_e,sizeof(*fat_e),1,disk);
 
     //seeking the data block for root
@@ -214,7 +247,7 @@ file_entry *f_opendir(const char *pathname){
             f_error = FILE_NOT_FOUND;
             return NULL;
         }
-        fat_e = &fat_table[file_e->FAT_entry];
+        fat_e = &fat_table[file_e->first_FAT_idx];
     }
     return file_e;
 
@@ -244,5 +277,7 @@ int f_rmdir(const char *pathname){
 }
 
 int main(){
-
+    f_init();
+    file_handle *test = f_open("/next",1);
+    f_terminate();
 }
