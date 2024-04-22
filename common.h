@@ -17,7 +17,7 @@
 #define FILE_NOT_FOUND 2
 
 //disk
-#define NAME_BYTES 8
+#define NAME_BYTES 9
 #define TOTAL_BYTES 1048576
 #define TOTAL_BLOCKS 2048 // 1048576 / 512
 #define SUPERBLOCK_BYTES 512
