@@ -5,7 +5,7 @@
 
 //file handle
 typedef struct file_handle{ 
-    char *name; //name of file
+    char name[NAME_BYTES]; //name of file
     size_t cur_rindex; //current read index in bytes
     size_t cur_windex; //current write index in bytes
     char * cur_rchar; //current location of character for reading
@@ -18,7 +18,7 @@ typedef struct file_handle{
 // typedef struct dir{ 
 //     char *name;
 //     List *files; //linked list of files in the directory
-//     file_entry *current_file; //pointer to current file for readdir
+//     file_header *current_file; //pointer to current file for readdir
 //     size_t FAT_entry; //first FAT entry
 // }dir;
 
@@ -28,11 +28,11 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream);
 int f_close(file_handle *stream);
 int f_seek(file_handle *stream, long offset, int position);
 void f_rewind(file_handle *stream);
-int f_stat(file_handle *stream, file_entry *stat_buffer);
+int f_stat(file_handle *stream, file_header *stat_buffer);
 int f_remove(file_handle *stream);
-file_entry *f_opendir(const char *name);
-file_entry *f_readdir(file_entry *directory);
-int f_closedir(file_entry *stream);
+file_header *f_opendir(const char *name);
+file_header *f_readdir(file_header *directory);
+int f_closedir(file_header *stream);
 int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);
 extern int f_error;

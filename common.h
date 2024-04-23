@@ -9,7 +9,6 @@
 
 
 #define NUM_OPEN_FILES 50
-#define NAME_BYTES 8
 #define BLOCK_SIZE 512
 #define NUM_FAT_ENTRIES 1024
 

@@ -16,13 +16,13 @@ typedef struct superblock {
 }superblock;
 
 //file entry 
-typedef struct file_entry { //16 bytes total, 496 bytes buffer
+typedef struct file_header { //16 bytes total, 496 bytes buffer
     char name[NAME_BYTES];
     u_int8_t is_directory; //1 = directory, 0 = normal file
     u_int16_t first_FAT_idx; //first FAT entry, 2 bytes
     u_int32_t size; //legnth of file in bytes, 4 bytes
     char data_in_first_block[FILE_AFTER_HEADER_BYTES];
-}file_entry;
+}file_header;
 
 typedef struct free_datablock {
     int next;
