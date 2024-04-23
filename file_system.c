@@ -241,10 +241,33 @@ int f_close(file_handle *stream){
 }
 
 int f_seek(file_handle *stream, long offset, int position){
+    if(position == SEEK_SET){
+        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+        stream->cur_rindex = offset; 
+        stream->cur_windex = offset;
+    } else if(position == SEEK_CUR){
+        stream->cur_rchar = (char *)(stream->cur_rchar + offset);
+        stream->cur_wchar = (char *)(stream->cur_rchar + offset);
+        stream->cur_rindex += offset;
+        stream->cur_windex += offset;
+    } else if(position == SEEK_END){
+        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+        stream->cur_rindex = size - offset;
+        stream->cur_windex = size - offset;
+    } else {
+        printf("Invalid position!\n");
+        return;
+    }
     //move pointers to a specified position in a file
 }
 
 void f_rewind(file_handle *stream){
+    stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+    stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+    stream->cur_rindex = 0;
+    stream->cur_windex = 0;
     //move pointers to the start of the file
 }
 
