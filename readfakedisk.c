@@ -1,6 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "disk.h"
+#include "common.h"
+
+/*
 #define NAME_BYTES 8
 #define TOTAL_BYTES 1048576
 #define TOTAL_BLOCKS 2048 // 1048576 / 512
@@ -24,16 +28,21 @@
 #define APPEND 4
 #define FREE_DATABLOCK_EXTRA_BYTES 508
 #define PROT_BYTES 16
-
+*/
 
 FILE * global_read_fp;
 
+#define FILE_HEADER_BYTES 16
+#define DIR_ENTRY_BYTES 32
+#define BLOCK_BYTES 512
+
+/*
 struct superblock {
-    int size; /* size of blocks in bytes */
-    int table_offset; /* offset of FAT table region in blocks */
-    int data_offset; /* data region offset in blocks */
-    //int swap_offset; /* swap region offset in blocks */
-    int free_block; /* head of free block list, index, if disk is full, -1 */
+    int size; // size of blocks in bytes 
+    int table_offset; // offset of FAT table region in blocks 
+    int data_offset; // data region offset in blocks 
+    //int swap_offset; // swap region offset in blocks 
+    int free_block; // head of free block list, index, if disk is full, -1 
     //int data_offset;
     int fat_offset;
     char padding[SUPERBLOCK_PADDING];
@@ -59,6 +68,7 @@ struct free_datablock {
         int next;
         char extra[FREE_DATABLOCK_EXTRA_BYTES];
     };
+*/
 
 int main() {
     global_read_fp = fopen(FAKEDISK_NAME, "rb");
@@ -68,14 +78,15 @@ int main() {
     fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
 
     // read fattable
-    struct fattable my_fattable;
-    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
+    //struct fattable my_fattable;
+    fat_entry fat_table[TOTAL_BLOCKS];
+    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
 
     // read directories
-    file_entry root_dir;
+    dir_header root_dir;
     fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
 
-    file_entry next_dir;
+    dir_header next_dir;
     fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
 
     // read first two free blocks
