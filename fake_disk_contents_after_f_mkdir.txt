@@ -1,43 +1,76 @@
 Reading symbols from ./readfakedisk2...
-(gdb) break 63
-Breakpoint 1 at 0x11df: file readfakedisk_after_f_mkdir.c, line 63.
+(gdb) break 78
+Breakpoint 1 at 0x11ff: file readfakedisk_after_f_mkdir.c, line 78.
 (gdb) run
-Starting program: /media/victor/Auxillary/TEMP 10/hw7/readfakedisk2 
+Starting program: /homes/vnault/Desktop/CS355-HW7/readfakedisk2 
 
-Breakpoint 1, main () at readfakedisk_after_f_mkdir.c:63
-63	    global_read_fp = fopen(FAKEDISK_NAME, "rb");
+Breakpoint 1, main () at readfakedisk_after_f_mkdir.c:78
+78	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
 (gdb) next
-67	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
-(gdb) next
-71	    fread(&my_fattable, FATTABLE_BYTES, 1, global_read_fp);
+83	    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
 (gdb) print my_superblock
-$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, 
-  fat_offset = 1, padding = '\000' <repeats 491 times>}
+$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, fat_offset = 1, padding = '\000' <repeats 491 times>}
 (gdb) next
-75	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
-(gdb) print my_fattable
-$2 = {indicies = {-1, -1, -2, -1, -2 <repeats 2044 times>}}
+87	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print fat_table
+$2 = {{next = -1}, {next = -1}, {next = -2}, {next = -1}, {next = -2} <repeats 2044 times>}
 (gdb) next
-78	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
+90	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000", is_directory = 1 '\001', FAT_entry = 0, 
-  size = 21, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = "\001\000\000\000\003", '\000' <repeats 410 times>}
+$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 144, data_in_first_block = {{
+      name = "root\000\000\000\000", first_FAT_idx = 0, size = 112, uid = 101 'e', 
+      protection = "\001\001\001", '\000' <repeats 12 times>}, {name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, 
+      uid = 101 'e', protection = '\000' <repeats 15 times>}, {name = "next\000\000\000\000", first_FAT_idx = 1, size = 80, 
+      uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>}, {name = "mde_dir\000|", first_FAT_idx = 3, size = 80, 
+      uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000\317\364\177\000\000\001"}, {
+      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', 
+      protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
+      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, 
+      size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", 
+      first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
+      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', 
+      protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
+      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, 
+      size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", 
+      first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
+      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', 
+      protection = '\000' <repeats 15 times>}}, padding = '\000' <repeats 15 times>}
 (gdb) next
-81	    fread(&new_dir, BLOCK_BYTES, 1, global_read_fp);
+93	    fread(&new_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print next_dir
-$4 = {name = "next\000\000\000", is_directory = 1 '\001', FAT_entry = 1, 
-  size = 17, uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = '\000' <repeats 415 times>}
+$4 = {name = "next\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 1, size = 80, data_in_first_block = {{
+      name = "next\000\000\000\000", first_FAT_idx = 1, size = 80, uid = 101 'e', 
+      protection = "\001\001\001", '\000' <repeats 12 times>}, {name = "root\000\000\000\000", first_FAT_idx = 0, size = 112, 
+      uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>}, {name = "\000\000\000\000\000\000\000\000", 
+      first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>} <repeats 11 times>}, 
+  padding = '\000' <repeats 15 times>}
 (gdb) next
-82	    fread(&new_dir, BLOCK_BYTES, 1, global_read_fp);
+94	    fread(&new_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) next
-92	    dummy = 12;
+105	    dummy = 12;
 (gdb) print new_dir
-$5 = {name = "mde_dir", is_directory = 1 '\001', FAT_entry = 3, size = 17, 
-  uid = 101 'e', restrictions = 3 '\003', protection = 202, 
-  data_in_first_block = "\000\000\000\000\001\001\000\000p\000\000\000\b\000\000\000\000\000\000\000\001", '\000' <repeats 15 times>, "|\000\000\000w\000\000\000o\000\000\000c\000\000\000\221\345\267S\337\177\000\000\200k\305S\337\177\000\000\377\000\000\000\000\000\000\000\000\020\000\000\000\000\000\000\260\377\377\377\377\377\377\377@@\357\232\027V\000\000@@\357\232\027V\000\000\200\264)\233\027V\000\000\200\304)\233\027V\000\000\000\020\000\000\000\000\000\000\000\020\000\000\000\000\000\000\240\262)\233\027V\000\000\035\275\256S\337\177\000\000\001\003\001\000\000\000\000\000\222.\006\000\000\000\000\000\001\000\000\000\000\000\000\000\377\201\000\000\350\003\000\000\350\003", '\000' <repeats 15 times>...}
+$5 = {name = "mde_dir\000\220", is_directory = 1 '\001', first_FAT_idx = 3, size = 80, data_in_first_block = {{name = "mde_dir\000|", 
+      first_FAT_idx = 3, size = 80, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000\317\364\177\000\000\001"}, {
+      name = "root\000\000\000\000", first_FAT_idx = 0, size = 112, uid = 101 'e', 
+      protection = "\001\001\001", '\000' <repeats 12 times>}, {name = "\377\001\000\000\000\000\000\000", first_FAT_idx = 0, 
+      size = 0, uid = 176 '\260', protection = "\377\377\377\377\377\377\377@0<\266\304U\000\000@"}, {
+      name = "\304U\000\000\200\004\225\267", <incomplete sequence \304>, first_FAT_idx = 0, size = 3080004736, uid = 196 '\304', 
+      protection = "U\000\000\000 \000\000\000\000\000\000\000 \000\000"}, {name = "\240\002\225\267\304U\000\000\035", 
+      first_FAT_idx = 53110, size = 32756, uid = 57 '9', protection = "\000\000\000\000\000\000\000<`\"\345\001\000\000\000\001"}, {
+      name = "\000\000\000\000\264\201\000\000\025", first_FAT_idx = 0, size = 21781, uid = 0 '\000', 
+      protection = '\000' <repeats 12 times>, "\374\017\000"}, {name = "\000\000\020\000\000\000\000\000", first_FAT_idx = 0, 
+      size = 822083584, uid = 0 '\000', protection = "j)\"\326_\202\n\265\257\227\031\000\000\000", <incomplete sequence \320>}, {
+      name = "\304U\000\000\240\001<\266", <incomplete sequence \304>, first_FAT_idx = 0, size = 2594543888, uid = 253 '\375', 
+      protection = "\177", '\000' <repeats 14 times>}, {name = " \230\245\232\375\177\000\000?", first_FAT_idx = 53108, size = 32756, 
+      uid = 16 '\020', protection = "\000\000\000\060\000\000\000\340\227\245\232\375\177\000\000 "}, {
+      name = "\375\177\000\000\000j)", <incomplete sequence \326>, first_FAT_idx = 2690, size = 7680, uid = 0 '\000', 
+      protection = "\000\000\000\377\377\377\377\000\000\000\000\000\000\000\000"}, {name = "\b\000\000\000\000\000\000\000", 
+      first_FAT_idx = 46652, size = 21956, uid = 224 '\340', 
+      protection = "\221\245\232\375\177\000\000\000 \000\000\000\000\000\000"}, {name = "\000\000\000\000\330\001\000\000", 
+      first_FAT_idx = 0, size = 3079996064, uid = 196 '\304', protection = "U\000\000\000 \000\000\000\000\000\000\000 \000\000"}, {
+      name = "\001\000\000\000\000\000\000\000`", first_FAT_idx = 46652, size = 21956, uid = 64 '@', 
+      protection = "E\215\317\364\177\000\000\343>v\317\364\177\000\000"}}, 
+  padding = "\000\000\000\000\320\f<\266\304U\000\000 \230\245\232"}
 (gdb) c
 Continuing.
-[Inferior 1 (process 25489) exited normally]
-
+[Inferior 1 (process 193799) exited normally]
