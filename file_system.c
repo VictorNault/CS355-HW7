@@ -8,6 +8,9 @@ int f_error = EXIT_SUCCESS;
 int is_initialized = 0;
 superblock *global_superblock;
 
+struct current_block{
+    char data[512];
+};
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
     char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
@@ -231,36 +234,47 @@ int f_close(file_handle *stream){
     //close a file handle, cleans up memory in the open files list
 }
 
-// int f_seek(file_handle *stream, long offset, int position){
-//     if(position == SEEK_SET){
-//         stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
-//         stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
-//         stream->cur_rindex = offset; 
-//         stream->cur_windex = offset;
-//     } else if(position == SEEK_CUR){
-//         stream->cur_rchar = (char *)(stream->cur_rchar + offset);
-//         stream->cur_wchar = (char *)(stream->cur_rchar + offset);
-//         stream->cur_rindex += offset;
-//         stream->cur_windex += offset;
-//     } else if(position == SEEK_END){
-//         stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
-//         stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
-//         stream->cur_rindex = size - offset;
-//         stream->cur_windex = size - offset;
-//     } else {
-//         printf("Invalid position!\n");
-//         return;
-//     }
-//     //move pointers to a specified position in a file
-// }
+int f_seek(file_handle *stream, long offset, int position){
+    struct current_block cblock = malloc(sizeof(struct current_block));
+    if(position == SEEK_SET){
+        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+        
+        fread(cblock, 512, 1, stream);
+        stream->cur_wchar = cblock->data;
+        stream->cur_rchar = cblock->data;
+        stream->cur_rindex = offset; 
+        stream->cur_windex = offset;
+    } else if(position == SEEK_CUR){
+        stream->cur_rchar = (char *)(stream->cur_rchar + offset);
+        stream->cur_wchar = (char *)(stream->cur_rchar + offset);
+        fread(cblock, 512, 1, stream);
+        stream->cur_wchar = cblock->data;
+        stream->cur_rchar = cblock->data;
+        stream->cur_rindex += offset;
+        stream->cur_windex += offset;
+    } else if(position == SEEK_END){
+        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+        fread(cblock, 512, 1, stream);
+        stream->cur_wchar = cblock->data;
+        stream->cur_rchar = cblock->data;
+        stream->cur_rindex = size - offset;
+        stream->cur_windex = size - offset;
+    } else {
+        printf("Invalid position!\n");
+        return;
+    }
+    //move pointers to a specified position in a file
+}
 
-// void f_rewind(file_handle *stream){
-//     stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
-//     stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
-//     stream->cur_rindex = 0;
-//     stream->cur_windex = 0;
-//     //move pointers to the start of the file
-// }
+void f_rewind(file_handle *stream){
+    stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+    stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+    stream->cur_rindex = 0;
+    stream->cur_windex = 0;
+    //move pointers to the start of the file
+}
 
 int f_stat(file_handle *stream, file_header *stat_buffer){
     //retrieve information about a file
