@@ -11,6 +11,9 @@ int data_offset; /* data region offset in blocks */
 int free_block; /* head of free block list, index, if disk is full, -1 */
 int fat_offset;
 
+struct current_block{
+    char data[512];
+};
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
     char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
@@ -241,19 +244,30 @@ int f_close(file_handle *stream){
 }
 
 int f_seek(file_handle *stream, long offset, int position){
+    struct current_block cblock = malloc(sizeof(struct current_block));
     if(position == SEEK_SET){
         stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
         stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+        
+        fread(cblock, 512, 1, stream);
+        stream->cur_wchar = cblock->data;
+        stream->cur_rchar = cblock->data;
         stream->cur_rindex = offset; 
         stream->cur_windex = offset;
     } else if(position == SEEK_CUR){
         stream->cur_rchar = (char *)(stream->cur_rchar + offset);
         stream->cur_wchar = (char *)(stream->cur_rchar + offset);
+        fread(cblock, 512, 1, stream);
+        stream->cur_wchar = cblock->data;
+        stream->cur_rchar = cblock->data;
         stream->cur_rindex += offset;
         stream->cur_windex += offset;
     } else if(position == SEEK_END){
         stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
         stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+        fread(cblock, 512, 1, stream);
+        stream->cur_wchar = cblock->data;
+        stream->cur_rchar = cblock->data;
         stream->cur_rindex = size - offset;
         stream->cur_windex = size - offset;
     } else {
