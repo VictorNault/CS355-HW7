@@ -6,10 +6,7 @@ FILE *disk;
 fat_entry fat_table[TOTAL_BLOCKS];
 int f_error = EXIT_SUCCESS;
 int is_initialized = 0;
-int table_offset; /* offset of FAT table region in blocks */
-int data_offset; /* data region offset in blocks */
-int free_block; /* head of free block list, index, if disk is full, -1 */
-int fat_offset;
+superblock *global_superblock;
 
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
@@ -44,7 +41,7 @@ char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){
 
 unsigned long find_offset(int block){
     //finds the byte offset from 0 for the data block
-    return data_offset * BLOCK_SIZE + block * BLOCK_SIZE;
+    return global_superblock->data_offset * BLOCK_SIZE + block * BLOCK_SIZE;
 }
 
 fat_entry *find_next_fat(fat_entry *current){
@@ -85,7 +82,7 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
         fread(cur_file,sizeof(dir_entry),1,disk);
         cur_fat = find_next_fat(cur_fat);
         total_size = 0;
-    }while(cur_fat);
+    }while(cur_fat->next != -1 && cur_fat->next != -2);
 
     free(cur_file);
     printf("File %s found in directory %s\n",name,dir->name);
@@ -107,15 +104,9 @@ void f_init(){ //initializing the disk
         disk = fopen("fake_disk","rb+");
 
         //reading superblock
-        superblock *sb = malloc(sizeof(superblock));
-        fread(sb,sizeof(superblock),1,disk);
-        //assigning globals
-        table_offset = sb->table_offset;
-        data_offset = sb->data_offset;
-        free_block = sb->free_block;
-        fat_offset = sb->fat_offset;
-        free(sb);
-
+        global_superblock = malloc(sizeof(superblock));
+        fread(global_superblock,sizeof(superblock),1,disk);
+    
         //reading fat table
         fseek(disk,BLOCK_SIZE,SEEK_SET);
         fread(fat_table,TOTAL_BLOCKS*sizeof(fat_entry),1,disk);
@@ -240,36 +231,36 @@ int f_close(file_handle *stream){
     //close a file handle, cleans up memory in the open files list
 }
 
-int f_seek(file_handle *stream, long offset, int position){
-    if(position == SEEK_SET){
-        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
-        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
-        stream->cur_rindex = offset; 
-        stream->cur_windex = offset;
-    } else if(position == SEEK_CUR){
-        stream->cur_rchar = (char *)(stream->cur_rchar + offset);
-        stream->cur_wchar = (char *)(stream->cur_rchar + offset);
-        stream->cur_rindex += offset;
-        stream->cur_windex += offset;
-    } else if(position == SEEK_END){
-        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
-        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
-        stream->cur_rindex = size - offset;
-        stream->cur_windex = size - offset;
-    } else {
-        printf("Invalid position!\n");
-        return;
-    }
-    //move pointers to a specified position in a file
-}
+// int f_seek(file_handle *stream, long offset, int position){
+//     if(position == SEEK_SET){
+//         stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+//         stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
+//         stream->cur_rindex = offset; 
+//         stream->cur_windex = offset;
+//     } else if(position == SEEK_CUR){
+//         stream->cur_rchar = (char *)(stream->cur_rchar + offset);
+//         stream->cur_wchar = (char *)(stream->cur_rchar + offset);
+//         stream->cur_rindex += offset;
+//         stream->cur_windex += offset;
+//     } else if(position == SEEK_END){
+//         stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+//         stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
+//         stream->cur_rindex = size - offset;
+//         stream->cur_windex = size - offset;
+//     } else {
+//         printf("Invalid position!\n");
+//         return;
+//     }
+//     //move pointers to a specified position in a file
+// }
 
-void f_rewind(file_handle *stream){
-    stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
-    stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
-    stream->cur_rindex = 0;
-    stream->cur_windex = 0;
-    //move pointers to the start of the file
-}
+// void f_rewind(file_handle *stream){
+//     stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+//     stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+//     stream->cur_rindex = 0;
+//     stream->cur_windex = 0;
+//     //move pointers to the start of the file
+// }
 
 int f_stat(file_handle *stream, file_header *stat_buffer){
     //retrieve information about a file
@@ -328,9 +319,133 @@ int f_closedir(file_header *stream){
     //close an open directory file, cleans up memory in the open files list
 }
 
-int f_mkdir(const char *pathname, char *mode){
+int f_mkdir(const char *pathname, char *mode) {
+    // need to update for situation where only one free block (head of list)
     //creates a new directory file in the specified location
     //make sure to update values for ./ and ../
+    if (global_superblock->free_block == NONE_FREE) {
+        printf("No free blocks, exiting f_mkdir\n");
+        return EXIT_FAILURE;
+    }
+    
+
+    //tokenizing the pathname 
+    int token_length = 0;
+    char** tokens = tokenize(pathname,&token_length,"/");
+    char *name = malloc(sizeof(char)*9);
+    strcpy(name,tokens[token_length-1]);
+    printf("%s\n",name);
+    if ((strlen(name) + 1) > NAME_BYTES) {
+        printf("Name too long\n");
+        return EXIT_FAILURE;
+    }
+    //seeking the root directory fat entry
+    fat_entry *fat_e = &fat_table[0];
+    file_header *file_e = malloc(sizeof(file_header));
+
+    //seeking the data block for root
+    fseek(disk,find_offset(0),SEEK_SET);
+    fread(file_e,sizeof(*file_e),1,disk);
+
+    int status = 0;
+    //finding file from directory repeatedly
+    for(int i = 0; i < token_length-1; i++){
+        status = find_file_from_directory(file_e,fat_e,tokens[i]);
+        
+        //error checking
+        if(status == EXIT_FAILURE){
+            for(int i = 0; i < token_length; i++){
+                free(tokens[i]);
+            }
+            free(tokens);
+            free(file_e);
+            printf("FILE NOT FOUND\n");
+            return EXIT_FAILURE;
+        }
+    }//file_e should be the parent directory
+
+    // +1 for null char
+    int dir_block = file_e->first_FAT_idx;
+    fseek(disk, find_offset(dir_block), SEEK_SET);
+    dir_header *parent_dir = malloc(sizeof(dir_header));
+    //fclose(global_rw_fp);
+    //global_rw_fp = fopen(FAKEDISK_NAME, "rb+");
+    fread(parent_dir, BLOCK_SIZE, 1, disk);
+
+    // Get second free block,
+    // Remove from free list,
+    // Then fix free list
+    free_datablock *head_of_free_list = malloc(sizeof(free_datablock));
+    fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+    fread(head_of_free_list, BLOCK_SIZE, 1, disk);
+
+    free_datablock *second_free_block = malloc(sizeof(free_datablock));
+    fseek(disk, find_offset(head_of_free_list->next), SEEK_SET);
+    fread(second_free_block, BLOCK_SIZE, 1, disk);
+
+    // update and write free list
+    int new_dir_block = head_of_free_list->next;
+    head_of_free_list->next = second_free_block->next;
+    fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+    fwrite(head_of_free_list, BLOCK_SIZE, 1, disk);
+
+    // update and write fat table
+    fat_entry new_fat_entry;
+    new_fat_entry.next = -1;
+    fat_table[new_dir_block] = new_fat_entry;
+    fseek(disk, SUPERBLOCK_BYTES, SEEK_SET);
+    fwrite(&fat_table, FATTABLE_BYTES, 1, disk);
+
+    // add new block to parent dir (then write)
+    //int non_header_bytes_in_parent = parent_dir.size - FILE_HEADER_BYTES;
+    //parent_dir.data_in_first_block[non_header_bytes_in_parent] = new_dir_block;
+    //fseek(global_rw_fp, BLOCK_BYTES * (DATA_OFFSET + dir_block), SEEK_SET);
+    //fwrite(&parent_dir, BLOCK_BYTES, 1, global_rw_fp);
+
+    // make dir_entry for new dir
+    dir_entry *new_dir_entry = malloc(sizeof(dir_entry));
+    strcpy(new_dir_entry->name, name);
+    new_dir_entry->first_FAT_idx = new_dir_block;
+    new_dir_entry->size = FILE_HEADER_BYTES + (2 * DIR_ENTRY_BYTES);
+    new_dir_entry->uid = 101;
+    new_dir_entry->protection[0] = TRUE;
+    new_dir_entry->protection[1] = TRUE;
+    new_dir_entry->protection[2] = TRUE;
+    for (int i = 3; i < 10; i++) {
+        new_dir_entry->protection[i] = FALSE;
+    }
+
+    // add new block to parent dir (then write)
+    int non_header_bytes_in_parent = parent_dir->size - FILE_HEADER_BYTES;
+    int files_in_parent = non_header_bytes_in_parent / DIR_ENTRY_BYTES;
+    parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
+    parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+    fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
+    fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+
+
+    // finally make and write new dir itself
+    dir_header *new_dir = malloc(sizeof(dir_header));
+    strcpy(new_dir->name, name);
+    new_dir->is_directory = TRUE;
+    new_dir->first_FAT_idx = new_dir_block;
+    new_dir->size = new_dir_entry->size;
+    new_dir->data_in_first_block[0] = *new_dir_entry;
+    new_dir->data_in_first_block[1] = parent_dir->data_in_first_block[0];
+    fseek(disk, find_offset(new_dir_block), SEEK_SET);
+    fwrite(new_dir, BLOCK_SIZE, 1, disk);
+    free(new_dir);
+    free(parent_dir);
+    free(new_dir_entry);
+    free(second_free_block);
+    free(head_of_free_list);
+    for(int i = 0; i < token_length; i++){
+        free(tokens[i]);
+    }
+    free(tokens);
+    free(file_e);
+    free(name);
+    return 0;
 }
 
 int f_rmdir(const char *pathname){
@@ -340,5 +455,9 @@ int f_rmdir(const char *pathname){
 int main(){
     f_init();
     file_handle *test = f_open("/",1);
+    f_mkdir("/next/test","e");
+    dir_header temp;
+    fseek(disk,find_offset(1),SEEK_SET);
+    fread(&temp, BLOCK_SIZE, 1, disk);
     f_terminate();
 }

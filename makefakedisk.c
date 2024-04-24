@@ -2,9 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "disk.h"
-#include "common.h"
 
+#include "common.h"
 /*
 #define NAME_BYTES 8
 #define TOTAL_BYTES 1048576

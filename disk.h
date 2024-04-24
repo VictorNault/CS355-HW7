@@ -15,7 +15,7 @@ typedef struct superblock {
     char padding[SUPERBLOCK_PADDING];
 }superblock;
 
-//file entry 
+//file header 
 typedef struct file_header { //16 bytes total, 496 bytes buffer
     char name[NAME_BYTES];
     u_int8_t is_directory; //1 = directory, 0 = normal file
@@ -23,11 +23,6 @@ typedef struct file_header { //16 bytes total, 496 bytes buffer
     u_int32_t size; //legnth of file in bytes, 4 bytes
     char data_in_first_block[FILE_AFTER_HEADER_BYTES];
 }file_header;
-
-typedef struct free_datablock {
-    int next;
-    char extra[FREE_DATABLOCK_EXTRA_BYTES];
-}free_datablock;
 
 //inside the directory data block, 32 bytes
 typedef struct dir_entry{
@@ -37,5 +32,23 @@ typedef struct dir_entry{
     u_int8_t uid; //owner's user ID
     u_int8_t protection[PROT_BYTES]; //16 protection bytes
 }dir_entry;
+
+//directory header
+typedef struct dir_header { //16 bytes total, 15 dir_entries, 16 byte padding
+    char name[NAME_BYTES];
+    u_int8_t is_directory; //1 = directory, 0 = normal file
+    u_int16_t first_FAT_idx; //first FAT entry, 2 bytes
+    u_int32_t size; //legnth of file in bytes, 4 bytes
+    dir_entry data_in_first_block[15]; //15 dir_entries
+    char padding[16]; //junk
+}dir_header;
+
+typedef struct free_datablock {
+    int next;
+    char extra[FREE_DATABLOCK_EXTRA_BYTES];
+}free_datablock;
+
+
+
 
 #endif

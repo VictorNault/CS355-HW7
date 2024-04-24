@@ -3,6 +3,11 @@
 
 #include "common.h"
 
+#define READ_ONLY 1
+#define WRIT_EONLY 2
+#define READ_WRITE 3
+#define APPEND 4
+
 //file handle
 typedef struct file_handle{ 
     char name[NAME_BYTES]; //name of file
@@ -35,6 +40,9 @@ file_header *f_readdir(file_header *directory);
 int f_closedir(file_header *stream);
 int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);
+
 extern int f_error;
+extern FILE *disk;
+
 
 #endif 
