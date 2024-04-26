@@ -1,0 +1,34 @@
+Reading symbols from ./readfreshdisk...
+(gdb) break 186
+Breakpoint 1 at 0x11ff: file readfreshdisk.c, line 187.
+(gdb) run
+Starting program: /homes/vnault/Desktop/CS355-HW7/readfreshdisk 
+
+Breakpoint 1, main () at readfreshdisk.c:187
+187	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
+(gdb) next
+192	    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
+(gdb) print my_superblock
+$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 1, fat_offset = 1, padding = '\000' <repeats 491 times>}
+(gdb) next
+196	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print fat_table
+$2 = {{next = -1}, {next = -2} <repeats 2047 times>}
+(gdb) next
+203	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print root_dir
+$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 112, data_in_first_block = {{name = "root\000\000\000\000", first_FAT_idx = 0, size = 112, uid = 101 'e', 
+      protection = "\001\001\001\000\000\000\000\000\000\000\000"}, {name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, uid = 101 'e', protection = '\000' <repeats 11 times>}, {name = "\000\000\000\000\000\000\000\000", 
+      first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 11 times>} <repeats 13 times>}, padding = '\000' <repeats 15 times>}
+(gdb) next
+206	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print freeblock1
+$4 = {next = 2, extra = '\000' <repeats 479 times>}
+(gdb) next
+209	    dummy = 12;
+(gdb) print freeblock2
+$5 = {next = 3, extra = '\000' <repeats 479 times>}
+(gdb) c
+Continuing.
+[Inferior 1 (process 335215) exited normally]
+

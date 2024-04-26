@@ -60,7 +60,7 @@
 #define FILE_AFTER_HEADER_BYTES 496
 #define TABLE_OFFSET 1
 #define TABLE_BLOCKS 16
-#define FIXED_FREEBLOCK 2
+#define FIXED_FREEBLOCK 1
 #define UNUSED_BLOCK -2
 #define FAKEDISK_NAME "fresh_disk"
 #define TRUE 1
@@ -70,7 +70,7 @@
 #define READ_WRITE 3
 #define APPEND 4
 #define FREE_DATABLOCK_EXTRA_BYTES 480
-#define PROT_BYTES 16
+#define PROT_BYTES 12
 
 #include <stdio.h>
 #include <stdlib.h>
