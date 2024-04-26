@@ -27,6 +27,7 @@ typedef struct file_handle{
 //     size_t FAT_entry; //first FAT entry
 // }dir;
 
+void f_init();
 file_handle *f_open(const char *pathname, const int mode);
 size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream);
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream);

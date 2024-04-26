@@ -2,7 +2,7 @@ file_system: file_system.c file_system.h common.h
 	make List.o
 	make node.o
 	make file_system.o
-	make -B fake_disk
+	make -B fresh_disk
 	gcc -g -o file_system List.o node.o file_system.o -ggdb
 	make clean
 clean:
@@ -15,7 +15,7 @@ node.o: node.c node.h
 	gcc -c -g node.c -ggdb
 file_system.o: file_system.c file_system.h
 	gcc -c -g file_system.c -ggdb
-fake_disk: makefakedisk.c
-	gcc -g makefakedisk.c 
+fresh_disk: format.c
+	gcc -g format.c 
 	./a.out
 	rm -rf *.out

@@ -11,10 +11,12 @@ superblock *global_superblock;
 struct current_block{
     char data[512];
 };
+
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
     char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
     strcpy(stringToSplitCopy, stringToSplit); 
+    
     char * token = strtok(stringToSplitCopy,delimiters);
     *cmdLen = 0;
     while (token != NULL){
@@ -62,17 +64,17 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
     fread(cur_file,sizeof(dir_entry),1,disk);
     fat_entry *cur_fat = fat;
     int total_size = 16;
+    printf("name1: %s\n",cur_file->name);
     do{
         while(total_size < BLOCK_SIZE){
             total_size += sizeof(dir_entry);
-            fseek(disk,sizeof(dir_entry),SEEK_CUR);
             fread(cur_file,sizeof(dir_entry),1,disk);
+            printf("name: %s\n",cur_file->name);
             if(strcmp(cur_file->name, name) == 0){
                 printf("Successfully found file %s in directory %s\n",name,dir->name);
                 fseek(disk,find_offset(cur_file->first_FAT_idx),SEEK_SET);
                 fread(dir,sizeof(file_header),1,disk);
                 free(cur_file);
-                
                 return EXIT_SUCCESS;
             }
         }
@@ -104,7 +106,7 @@ void f_terminate(){
 void f_init(){ //initializing the disk
     if(!is_initialized){
         //reading disk
-        disk = fopen("fake_disk","rb+");
+        disk = fopen("fresh_disk","rb+");
 
         //reading superblock
         global_superblock = malloc(sizeof(superblock));
@@ -223,6 +225,21 @@ file_handle *f_open(const char *pathname, const int mode){
 size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //read the specified number of bytes from a file handle at the current position. 
     //returns the number of bytes read, or an error.
+
+    //the first block to read from
+    int data_block_offset = (stream->cur_rindex + 16) / BLOCK_SIZE;
+    fat_entry cur_fat_entry = fat_table[stream->first_FAT_idx];
+    int cur_block = stream->first_FAT_idx;
+
+    //setting the cur_fat_entry to that of the first block to read from
+    for(int i = 0; i < data_block_offset; i++){
+        cur_block = cur_fat_entry.next;
+        cur_fat_entry = fat_table[cur_block];
+    }
+
+
+
+
 }
 
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
@@ -235,46 +252,29 @@ int f_close(file_handle *stream){
 }
 
 int f_seek(file_handle *stream, long offset, int position){
-    struct current_block cblock = malloc(sizeof(struct current_block));
+    //struct current_block* cblock = malloc(sizeof(struct current_block));
+    int block_num;
+    int bit_num;
     if(position == SEEK_SET){
-        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
-        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + offset;
-        
-        fread(cblock, 512, 1, stream);
-        stream->cur_wchar = cblock->data;
-        stream->cur_rchar = cblock->data;
-        stream->cur_rindex = offset; 
-        stream->cur_windex = offset;
-    } else if(position == SEEK_CUR){
-        stream->cur_rchar = (char *)(stream->cur_rchar + offset);
-        stream->cur_wchar = (char *)(stream->cur_rchar + offset);
-        fread(cblock, 512, 1, stream);
-        stream->cur_wchar = cblock->data;
-        stream->cur_rchar = cblock->data;
-        stream->cur_rindex += offset;
-        stream->cur_windex += offset;
-    } else if(position == SEEK_END){
-        stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
-        stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32 + (size - offset);
-        fread(cblock, 512, 1, stream);
-        stream->cur_wchar = cblock->data;
-        stream->cur_rchar = cblock->data;
-        stream->cur_rindex = size - offset;
-        stream->cur_windex = size - offset;
-    } else {
-        printf("Invalid position!\n");
-        return;
-    }
-    //move pointers to a specified position in a file
+        block_num = offset / BLOCK_SIZE;
+        bit_num = offset % BLOCK_SIZE;
+        int base_bit = find_offset(block_num) + bit_num;
+        //fread(cblock, 512, 1, disk);
+        stream->cur_rchar = (char*)&base_bit;
+        stream->cur_wchar = (char*)&base_bit;
+        stream->cur_rindex = base_bit;
+        stream->cur_windex = base_bit;
+        return EXIT_SUCCESS;
+    } 
 }
 
-void f_rewind(file_handle *stream){
-    stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
-    stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
-    stream->cur_rindex = 0;
-    stream->cur_windex = 0;
-    //move pointers to the start of the file
-}
+// void f_rewind(file_handle *stream){
+//     stream->cur_wchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+//     stream->cur_rchar = (char *)find_offset(file_e->first_FAT_idx)+32;
+//     stream->cur_rindex = 0;
+//     stream->cur_windex = 0;
+//     //move pointers to the start of the file
+// }
 
 int f_stat(file_handle *stream, file_header *stat_buffer){
     //retrieve information about a file
@@ -468,10 +468,21 @@ int f_rmdir(const char *pathname){
 
 int main(){
     f_init();
-    file_handle *test = f_open("/",1);
-    f_mkdir("/next/test","e");
+    f_mkdir("/next","e");
+    f_mkdir("/hi","e");
+    f_mkdir("/hiiii","e");
     dir_header temp;
-    fseek(disk,find_offset(1),SEEK_SET);
+    fseek(disk,find_offset(0),SEEK_SET);
     fread(&temp, BLOCK_SIZE, 1, disk);
+    f_mkdir("/hi/wow","e");
+    file_handle *test = f_open("/hiiii/",1);
+    file_handle *test1 = f_open("/hi/wow/",1);
+    // f_seek(test,2,SEEK_SET);
+
+
+    // f_mkdir("/next/test","e");
+    
     f_terminate();
+    // int i = (1008+16) / 512;
+    // printf("%d\n",i);
 }
