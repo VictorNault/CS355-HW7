@@ -54,7 +54,7 @@
 #define ROOTDIR_BYTES 512
 #define MYDIR_BYTES 512
 #define SUPERBLOCK_PADDING 492
-#define FILE_AFTER_HEADER_BYTES 496
+#define FILE_AFTER_HEADER_BYTES 480
 #define TABLE_OFFSET 1
 #define TABLE_BLOCKS 16
 #define FIXED_FREEBLOCK 1
@@ -109,6 +109,7 @@ typedef struct file_header { //16 bytes total, 496 bytes buffer
     u_int8_t is_directory; //1 = directory, 0 = normal file
     u_int16_t first_FAT_idx; //first FAT entry, 2 bytes
     u_int32_t size; //legnth of file in bytes, 4 bytes
+    char padding[16];
     char data_in_first_block[FILE_AFTER_HEADER_BYTES];
 }file_header;
 
@@ -117,8 +118,8 @@ typedef struct dir_header { //16 bytes total, 496 bytes buffer
     u_int8_t is_directory; //1 = directory, 0 = normal file
     u_int16_t first_FAT_idx; //first FAT entry, 2 bytes
     u_int32_t size; //legnth of file in bytes, 4 bytes
-    dir_entry data_in_first_block[15];
     char padding[16];
+    dir_entry data_in_first_block[15];
 }dir_header;
 
 typedef struct free_datablock {
@@ -126,7 +127,7 @@ typedef struct free_datablock {
     char extra[FREE_DATABLOCK_EXTRA_BYTES];
 }free_datablock;
 
-#define FILE_HEADER_BYTES 16
+#define FILE_HEADER_BYTES 32
 #define DIR_ENTRY_BYTES 32
 #define BLOCK_BYTES 512
 #define TOTAL_DATA_BYTES (1048576 - 512 - 8192)
