@@ -64,12 +64,10 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
     fread(cur_file,sizeof(dir_entry),1,disk);
     fat_entry *cur_fat = fat;
     int total_size = 16;
-    printf("name1: %s\n",cur_file->name);
     do{
         while(total_size < BLOCK_SIZE){
             total_size += sizeof(dir_entry);
             fread(cur_file,sizeof(dir_entry),1,disk);
-            printf("name: %s\n",cur_file->name);
             if(strcmp(cur_file->name, name) == 0){
                 printf("Successfully found file %s in directory %s\n",name,dir->name);
                 fseek(disk,find_offset(cur_file->first_FAT_idx),SEEK_SET);
@@ -159,7 +157,7 @@ file_handle *f_open(const char *pathname, const int mode){
         }
         if(!file_e && i < token_length - 1){
             printf("Directory does not exist, exiting f_open\n");
-            f_error = FILE_NOT_FOUND;
+            f_error = E_FILE_NOT_FOUND;
             for(int i = 0; i < token_length; i++){
                 free(tokens[i]);
             }
@@ -169,7 +167,7 @@ file_handle *f_open(const char *pathname, const int mode){
         }
         else if(!file_e && i == token_length - 1 && mode == READ_ONLY){
             printf("File does not exist in read mode, exiting f_open\n");
-            f_error = FILE_NOT_FOUND;
+            f_error = E_FILE_NOT_FOUND;
             for(int i = 0; i < token_length; i++){
                 free(tokens[i]);
             }
@@ -227,19 +225,73 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //returns the number of bytes read, or an error.
 
     //the first block to read from
-    int data_block_offset = (stream->cur_rindex + 16) / BLOCK_SIZE;
+    int data_block_offset = (stream->cur_rindex + FILE_HEADER_BYTES) / BLOCK_SIZE;
     fat_entry cur_fat_entry = fat_table[stream->first_FAT_idx];
     int cur_block = stream->first_FAT_idx;
 
     //setting the cur_fat_entry to that of the first block to read from
     for(int i = 0; i < data_block_offset; i++){
         cur_block = cur_fat_entry.next;
+        if(cur_block == -1){
+            printf("Read out of bounds\n");
+            f_error = E_OUT_OF_BOUNDS;
+            return EXIT_FAILURE;
+        }
         cur_fat_entry = fat_table[cur_block];
+        
     }
 
+    //variables for reading
+    size_t total_size = size * nmemb;
+    int bytes_to_read = 0;
+    int copy_offset = 0;
 
+    //printf("data_block_offset: %d\ncur_block: %d\nbytes_to_read: %d\n",data_block_offset,cur_block,bytes_to_read);
+    while(total_size >= 0){
+        //setting how many bytes I'm reading in this current block
+        bytes_to_read = BLOCK_SIZE - ((stream->cur_rindex + FILE_HEADER_BYTES) % BLOCK_SIZE);
+        if(total_size < bytes_to_read){
+            bytes_to_read = total_size;
+        }
 
+        void *buffer = malloc(bytes_to_read);
 
+        //reading from the current block
+        int disk_offset = find_offset(cur_block) + stream->cur_rindex % BLOCK_SIZE;
+        if(cur_block == stream->first_FAT_idx){
+            disk_offset += FILE_HEADER_BYTES;
+        }
+        printf("cur_block: %d\n",cur_block);
+        fseek(disk,disk_offset,SEEK_SET);
+        fread(buffer,bytes_to_read,1,disk);
+
+        //copying what I read into the pointer from user
+        memcpy(ptr + copy_offset,buffer,bytes_to_read);
+        copy_offset += bytes_to_read;
+        total_size -= bytes_to_read;
+
+        if(total_size == 0){
+            free(buffer);
+            break; //break out the loop if we are done
+        }
+
+        //going to the next data block
+        cur_block = cur_fat_entry.next;
+        if(cur_block == -1){
+            printf("Read out of bounds\n");
+            f_error = E_OUT_OF_BOUNDS;
+            free(buffer);
+            return EXIT_FAILURE;
+        }
+        cur_fat_entry = fat_table[cur_block];
+
+        free(buffer);
+    }
+
+    assert(total_size == 0);
+    assert(copy_offset == size * nmemb);
+
+    return size * nmemb;
 }
 
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
@@ -348,7 +400,6 @@ int f_mkdir(const char *pathname, char *mode) {
     char** tokens = tokenize(pathname,&token_length,"/");
     char *name = malloc(sizeof(char)*9);
     strcpy(name,tokens[token_length-1]);
-    printf("%s\n",name);
     if ((strlen(name) + 1) > NAME_BYTES) {
         printf("Name too long\n");
         return EXIT_FAILURE;
@@ -468,20 +519,21 @@ int f_rmdir(const char *pathname){
 
 int main(){
     f_init();
-    f_mkdir("/next","e");
-    f_mkdir("/hi","e");
-    f_mkdir("/hiiii","e");
-    dir_header temp;
-    fseek(disk,find_offset(0),SEEK_SET);
-    fread(&temp, BLOCK_SIZE, 1, disk);
-    f_mkdir("/hi/wow","e");
-    file_handle *test = f_open("/hiiii/",1);
-    file_handle *test1 = f_open("/hi/wow/",1);
+    file_handle* temp = f_open("/",READ_ONLY);
+    dir_entry *a = malloc(32);
+    temp->cur_rindex = 0;
+    f_read(a,32,1,temp);
+    // f_mkdir("/next","e");
+    // f_mkdir("/hi","e");
+    // f_mkdir("/hiiii","e");
+    // dir_header temp;
+    // fseek(disk,find_offset(0),SEEK_SET);
+    // fread(&temp, BLOCK_SIZE, 1, disk);
+    // f_mkdir("/hi/wow","e");
+    // file_handle *test = f_open("/hiiii/",1);
+    // file_handle *test1 = f_open("/hi/wow/",1);
     // f_seek(test,2,SEEK_SET);
-
-
     // f_mkdir("/next/test","e");
-    
     f_terminate();
     // int i = (1008+16) / 512;
     // printf("%d\n",i);

@@ -13,7 +13,8 @@
 #define NUM_FAT_ENTRIES 1024
 
 //errors
-#define FILE_NOT_FOUND 2
+#define E_FILE_NOT_FOUND 2
+#define E_OUT_OF_BOUNDS 3
 
 //disk
 #define NAME_BYTES 9
@@ -43,6 +44,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>
+#include <math.h>
 #include "disk.h"
 #include "List.h"
 #include "node.h"
