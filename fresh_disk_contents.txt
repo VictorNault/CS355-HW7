@@ -1,34 +1,36 @@
 Reading symbols from ./readfreshdisk...
-(gdb) break 187
-Breakpoint 1 at 0x11ff: file readfreshdisk.c, line 188.
+(gdb) break 188
+Breakpoint 1 at 0x11f9: file readfreshdisk.c, line 189.
 (gdb) run
-Starting program: /homes/vnault/Desktop/CS355-HW7/readfreshdisk 
+Starting program: /media/victor/Auxillary/TEMP 10/hw7/new/readfreshdisk 
 
-Breakpoint 1, main () at readfreshdisk.c:188
-188	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
+Breakpoint 1, main () at readfreshdisk.c:189
+189	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
 (gdb) next
-193	    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
+194	    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
 (gdb) print my_superblock
 $1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 1, fat_offset = 1, padding = '\000' <repeats 491 times>}
 (gdb) next
-197	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
+198	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print fat_table
 $2 = {{next = -1}, {next = -2} <repeats 2047 times>}
 (gdb) next
-204	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
+205	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 128, padding = '\000' <repeats 15 times>, data_in_first_block = {{name = "root\000\000\000\000", first_FAT_idx = 0, size = 128, uid = 101 'e', 
-      protection = "\001\001\001\000\000\000\000\000\000\000\000"}, {name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, uid = 101 'e', protection = '\000' <repeats 11 times>}, {name = "\000\000\000\000\000\000\000\000", 
-      first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 11 times>} <repeats 13 times>}}
+$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 128, padding = '\000' <repeats 15 times>, data_in_first_block = {{
+      name = "root\000\000\000\000", first_FAT_idx = 0, size = 128, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 1 '\001'}, {
+      name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, uid = 101 'e', protection = "\000\000\000\000\000\000\000\000\000\000", is_directory = 0 '\000'}, {
+      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = "\000\000\000\000\000\000\000\000\000\000", 
+      is_directory = 0 '\000'} <repeats 13 times>}}
 (gdb) next
-207	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
+208	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print freeblock1
 $4 = {next = 2, extra = '\000' <repeats 479 times>}
 (gdb) next
-210	    dummy = 12;
+211	    dummy = 12;
 (gdb) print freeblock2
 $5 = {next = 3, extra = '\000' <repeats 479 times>}
 (gdb) c
 Continuing.
-[Inferior 1 (process 339754) exited normally]
+[Inferior 1 (process 3338) exited normally]
 

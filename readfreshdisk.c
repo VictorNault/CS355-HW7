@@ -67,7 +67,7 @@
 #define READ_WRITE 3
 #define APPEND 4
 #define FREE_DATABLOCK_EXTRA_BYTES 480
-#define PROT_BYTES 12
+#define PROT_BYTES 11
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +101,7 @@ typedef struct dir_entry{
     u_int32_t size; //legnth of file in bytes, 4 bytes
     u_int8_t uid; //owner's user ID
     u_int8_t protection[PROT_BYTES]; //16 protection bytes
+    u_int8_t is_directory;
 }dir_entry;
 
 //file entry 
