@@ -1,64 +1,54 @@
 Reading symbols from ./readfakedisk...
-(gdb) break 77
-Breakpoint 1 at 0x11ff: file readfakedisk.c, line 78.
+(gdb) break 188
+Breakpoint 1 at 0x11f9: file readfakedisk.c, line 189.
 (gdb) run
-Starting program: /homes/vnault/Desktop/CS355-HW7/readfakedisk 
+Starting program: /media/victor/Auxillary/TEMP 10/hw7/new/readfakedisk 
 
-Breakpoint 1, main () at readfakedisk.c:78
-78	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
+Breakpoint 1, main () at readfakedisk.c:189
+189	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
 (gdb) next
-83	    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
+194	    fread(&fat_table, FATTABLE_BYTES, 1, global_read_fp);
 (gdb) print my_superblock
-$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 2, 
-  fat_offset = 1, padding = '\000' <repeats 491 times>}
+$1 = {size = 512, table_offset = 1, data_offset = 17, free_block = 1, fat_offset = 1, padding = '\000' <repeats 491 times>}
 (gdb) next
-87	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
+198	    fread(&root_dir, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print fat_table
-$2 = {{next = -1}, {next = -1}, {next = -2} <repeats 2046 times>}
+$2 = {{next = -1}, {next = -2}, {next = 4}, {next = -2}, {next = -1}, {next = -2} <repeats 2043 times>}
 (gdb) next
-90	    fread(&next_dir, BLOCK_BYTES, 1, global_read_fp);
+205	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', 
-  first_FAT_idx = 0, size = 112, data_in_first_block = {{
-      name = "root\000\000\000\000", first_FAT_idx = 0, size = 112, 
-      uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>}, {
-      name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, 
-      uid = 101 'e', protection = '\000' <repeats 15 times>}, {
-      name = "next\000\000\000\000", first_FAT_idx = 1, size = 80, 
-      uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
-      uid = 0 '\000', protection = '\000' <repeats 15 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, 
---Type <RET> for more, q to quit, c to continue without paging--c
-      d = 0 '\000', protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>}, {name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>}}, padding = '\000' <repeats 15 times>}
+$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 160, padding = '\000' <repeats 15 times>, data_in_first_block = {{
+      name = "root\000\000\000\000", first_FAT_idx = 0, size = 128, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 1 '\001'}, {
+      name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, uid = 101 'e', protection = "\000\000\000\000\000\000\000\000\000\000", is_directory = 0 '\000'}, {
+      name = "beemovie", first_FAT_idx = 2, size = 881, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 0 '\000'}, {
+      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = "\000\000\000\000\000\000\000\000\000\000", 
+      is_directory = 0 '\000'} <repeats 12 times>}}
 (gdb) next
-94	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
-(gdb) print next_dir
-$4 = {name = "next\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 1, size = 80, data_in_first_block = {{name = "next\000\000\000\000", first_FAT_idx = 1, size = 80, uid = 101 'e', 
-      protection = "\001\001\001", '\000' <repeats 12 times>}, {name = "root\000\000\000\000", first_FAT_idx = 0, size = 112, uid = 101 'e', protection = "\001\001\001", '\000' <repeats 12 times>}, {
-      name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = '\000' <repeats 15 times>} <repeats 11 times>}, padding = '\000' <repeats 15 times>}
-(gdb) next
-97	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
+208	    fread(&mb_fileblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print freeblock1
-$5 = {next = 3, extra = '\000' <repeats 479 times>}
+$4 = {next = 3, extra = '\000' <repeats 479 times>}
 (gdb) next
-100	    dummy = 12;
+211	    fread(&freeblock2, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print mb_fileblock1
+$5 = {name = "beemovie", is_directory = 0 '\000', first_FAT_idx = 2, size = 881, padding = '\000' <repeats 15 times>, 
+  data_in_first_block = "According to all known laws of aviation, there is no way a bee should be able to fly. Its wings are too small to get its fat little body off the ground. The bee, of course, flies anyway because bees d"...}
+(gdb) next
+214	    fread(&mb_fileblock2, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print freeblock2
-$6 = {next = 4, extra = '\000' <repeats 479 times>}
+$6 = {next = 5, extra = '\000' <repeats 479 times>}
+(gdb) next
+217	    fread(&freeblock3, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print mb_fileblock2
+$7 = "I'll pick you up. Looking sharp. Use the stairs. Your father paid good money for those. Sorry. I'm excited. Here's the graduate. We're very proud of you, son. A perfect report card, all B's. Very prou"...
+(gdb) next
+220	    fread(&freeblock4, BLOCK_BYTES, 1, global_read_fp);
+(gdb) print freeblock3
+$8 = {next = 6, extra = '\000' <repeats 479 times>}
+(gdb) next
+223	    dummy = 12;
+(gdb) print freeblock4
+$9 = {next = 7, extra = '\000' <repeats 479 times>}
 (gdb) c
 Continuing.
-[Inferior 1 (process 1117103) exited normally]
-
+[Inferior 1 (process 8836) exited normally]
 
