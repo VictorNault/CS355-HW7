@@ -60,10 +60,10 @@ fat_entry *find_next_fat(fat_entry *current){
 int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
     //returns 0 or 1 for a malloced file_header of the file we are trying to find
     dir_entry *cur_file = malloc(sizeof(dir_entry));
-    fseek(disk,find_offset(dir->first_FAT_idx) + 16,SEEK_SET);
+    fseek(disk,find_offset(dir->first_FAT_idx) + FILE_HEADER_BYTES,SEEK_SET);
     fread(cur_file,sizeof(dir_entry),1,disk);
     fat_entry *cur_fat = fat;
-    int total_size = 16;
+    int total_size = FILE_HEADER_BYTES;
     do{
         while(total_size < BLOCK_SIZE){
             total_size += sizeof(dir_entry);
@@ -104,7 +104,7 @@ void f_terminate(){
 void f_init(){ //initializing the disk
     if(!is_initialized){
         //reading disk
-        disk = fopen("fresh_disk","rb+");
+        disk = fopen("fake_disk","rb+");
 
         //reading superblock
         global_superblock = malloc(sizeof(superblock));
@@ -260,8 +260,10 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         int disk_offset = find_offset(cur_block) + stream->cur_rindex % BLOCK_SIZE;
         if(cur_block == stream->first_FAT_idx){
             disk_offset += FILE_HEADER_BYTES;
+        }else{
+            disk_offset -= stream->cur_rindex % BLOCK_SIZE;
         }
-        printf("cur_block: %d\n",cur_block);
+        printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
         fseek(disk,disk_offset,SEEK_SET);
         fread(buffer,bytes_to_read,1,disk);
 
@@ -284,7 +286,7 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
             return EXIT_FAILURE;
         }
         cur_fat_entry = fat_table[cur_block];
-
+        stream->cur_rindex += bytes_to_read;
         free(buffer);
     }
 
@@ -483,6 +485,7 @@ int f_mkdir(const char *pathname, char *mode) {
     // add new block to parent dir (then write)
     int non_header_bytes_in_parent = parent_dir->size - FILE_HEADER_BYTES;
     int files_in_parent = non_header_bytes_in_parent / DIR_ENTRY_BYTES;
+    printf("Non_header_bytes: %d\nfiles_in_parent: %d\n",non_header_bytes_in_parent,files_in_parent);
     parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
     parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
     fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
@@ -519,16 +522,24 @@ int f_rmdir(const char *pathname){
 
 int main(){
     f_init();
-    file_handle* temp = f_open("/",READ_ONLY);
-    dir_entry *a = malloc(32);
-    temp->cur_rindex = 0;
-    f_read(a,32,1,temp);
+
+    file_handle *temp = f_open("beemovie",READ_ONLY);
+    char *a = malloc(100);
+    temp->cur_rindex = 470;
+    f_read(a,100,1,temp);
+
+    // f_mkdir("/next","e");
+    // file_handle* temp = f_open("/",READ_ONLY);
+    // dir_header temp1;
+    // fseek(disk,find_offset(0),SEEK_SET);
+    // fread(&temp1, BLOCK_SIZE, 1, disk);
+    // dir_entry *a = malloc(32);
+    // temp->cur_rindex = 32;
+    // f_read(a,32,1,temp);
     // f_mkdir("/next","e");
     // f_mkdir("/hi","e");
     // f_mkdir("/hiiii","e");
-    // dir_header temp;
-    // fseek(disk,find_offset(0),SEEK_SET);
-    // fread(&temp, BLOCK_SIZE, 1, disk);
+    
     // f_mkdir("/hi/wow","e");
     // file_handle *test = f_open("/hiiii/",1);
     // file_handle *test1 = f_open("/hi/wow/",1);

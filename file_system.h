@@ -16,7 +16,7 @@ typedef struct file_handle{
     char * cur_rchar; //current location of character for reading
     char * cur_wchar; //current location of character for writing
     size_t size; //size of file in bytes
-    u_int16_t first_FAT_idx; //first FAT entry
+    u_int16_t first_FAT_idx; //first FAT entry = first block of file
 }file_handle;
 
 // //directory handle
