@@ -136,6 +136,7 @@ typedef struct free_datablock {
 #define BLOCK_BYTES 512
 #define TOTAL_DATA_BYTES (1048576 - 512 - 8192)
 #define TOTAL_DATABLOCKS ((1048576 - 512 - 8192) / 512)
+#define ENTRIES_IN_FRESH_ROOT 2
 
 FILE * global_write_fp;
 
@@ -171,7 +172,7 @@ int main() {
     root_dir.is_directory = TRUE;
     root_dir.first_FAT_idx = 0;
     // also ., .., and next
-    root_dir.size = FILE_HEADER_BYTES + (3 * DIR_ENTRY_BYTES);
+    root_dir.size = FILE_HEADER_BYTES + (ENTRIES_IN_FRESH_ROOT * DIR_ENTRY_BYTES);
     fat_entry single_block_fat_entry;
     single_block_fat_entry.next = -1;
     fat_table[0] = single_block_fat_entry;

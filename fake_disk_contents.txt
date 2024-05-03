@@ -2,7 +2,7 @@ Reading symbols from ./readfakedisk...
 (gdb) break 188
 Breakpoint 1 at 0x11f9: file readfakedisk.c, line 189.
 (gdb) run
-Starting program: /media/victor/Auxillary/TEMP 10/hw7/new/readfakedisk 
+Starting program: /media/victor/Auxillary/TEMP 10/hw7_2/readfakedisk 
 
 Breakpoint 1, main () at readfakedisk.c:189
 189	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
@@ -17,8 +17,8 @@ $2 = {{next = -1}, {next = -2}, {next = 4}, {next = -2}, {next = -1}, {next = -2
 (gdb) next
 205	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 160, padding = '\000' <repeats 15 times>, data_in_first_block = {{
-      name = "root\000\000\000\000", first_FAT_idx = 0, size = 128, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 1 '\001'}, {
+$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 128, padding = '\000' <repeats 15 times>, data_in_first_block = {{
+      name = "root\000\000\000\000", first_FAT_idx = 0, size = 96, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 1 '\001'}, {
       name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, uid = 101 'e', protection = "\000\000\000\000\000\000\000\000\000\000", is_directory = 0 '\000'}, {
       name = "beemovie", first_FAT_idx = 2, size = 881, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 0 '\000'}, {
       name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = "\000\000\000\000\000\000\000\000\000\000", 
@@ -50,5 +50,5 @@ $8 = {next = 6, extra = '\000' <repeats 479 times>}
 $9 = {next = 7, extra = '\000' <repeats 479 times>}
 (gdb) c
 Continuing.
-[Inferior 1 (process 8836) exited normally]
+[Inferior 1 (process 5118) exited normally]
 

@@ -2,7 +2,7 @@ Reading symbols from ./readfreshdisk...
 (gdb) break 188
 Breakpoint 1 at 0x11f9: file readfreshdisk.c, line 189.
 (gdb) run
-Starting program: /media/victor/Auxillary/TEMP 10/hw7/new/readfreshdisk 
+Starting program: /media/victor/Auxillary/TEMP 10/hw7_2/readfreshdisk 
 
 Breakpoint 1, main () at readfreshdisk.c:189
 189	    fread(&my_superblock, SUPERBLOCK_BYTES, 1, global_read_fp);
@@ -17,8 +17,8 @@ $2 = {{next = -1}, {next = -2} <repeats 2047 times>}
 (gdb) next
 205	    fread(&freeblock1, BLOCK_BYTES, 1, global_read_fp);
 (gdb) print root_dir
-$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 128, padding = '\000' <repeats 15 times>, data_in_first_block = {{
-      name = "root\000\000\000\000", first_FAT_idx = 0, size = 128, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 1 '\001'}, {
+$3 = {name = "root\000\000\000\000", is_directory = 1 '\001', first_FAT_idx = 0, size = 96, padding = '\000' <repeats 15 times>, data_in_first_block = {{
+      name = "root\000\000\000\000", first_FAT_idx = 0, size = 96, uid = 101 'e', protection = "\001\001\001\000\000\000\000\000\000\000", is_directory = 1 '\001'}, {
       name = "INVALID!", first_FAT_idx = 65534, size = 4294967295, uid = 101 'e', protection = "\000\000\000\000\000\000\000\000\000\000", is_directory = 0 '\000'}, {
       name = "\000\000\000\000\000\000\000\000", first_FAT_idx = 0, size = 0, uid = 0 '\000', protection = "\000\000\000\000\000\000\000\000\000\000", 
       is_directory = 0 '\000'} <repeats 13 times>}}
@@ -32,5 +32,5 @@ $4 = {next = 2, extra = '\000' <repeats 479 times>}
 $5 = {next = 3, extra = '\000' <repeats 479 times>}
 (gdb) c
 Continuing.
-[Inferior 1 (process 3338) exited normally]
+[Inferior 1 (process 5080) exited normally]
 
