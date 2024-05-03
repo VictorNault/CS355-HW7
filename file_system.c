@@ -88,7 +88,7 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
     }while(cur_fat->next != -1 && cur_fat->next != -2);
 
     free(cur_file);
-    printf("File %s found in directory %s\n",name,dir->name);
+    printf("File %s not found in directory %s\n",name,dir->name);
     return EXIT_FAILURE;
 }
     
@@ -133,6 +133,8 @@ file_handle *f_open(const char *pathname, const int mode){
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
     
+    //***check if open files already contains the same file, then don't open
+
     //seeking the root directory fat entry
     fat_entry *fat_e = &fat_table[0];
 
@@ -146,16 +148,7 @@ file_handle *f_open(const char *pathname, const int mode){
         status = find_file_from_directory(file_e,fat_e,tokens[i]);
         
         //error checking
-        if(status == EXIT_FAILURE){
-            for(int i = 0; i < token_length; i++){
-                free(tokens[i]);
-            }
-            free(tokens);
-            free(file_e);
-            printf("FILE NOT FOUND\n");
-            return NULL;
-        }
-        if(!file_e && i < token_length - 1){
+        if(status == EXIT_FAILURE && i < token_length - 1){
             printf("Directory does not exist, exiting f_open\n");
             f_error = E_FILE_NOT_FOUND;
             for(int i = 0; i < token_length; i++){
@@ -165,7 +158,7 @@ file_handle *f_open(const char *pathname, const int mode){
             free(file_e);
             return NULL;
         }
-        else if(!file_e && i == token_length - 1 && mode == READ_ONLY){
+        else if(status == EXIT_FAILURE && i == token_length - 1 && mode == READ_ONLY){
             printf("File does not exist in read mode, exiting f_open\n");
             f_error = E_FILE_NOT_FOUND;
             for(int i = 0; i < token_length; i++){
@@ -175,7 +168,7 @@ file_handle *f_open(const char *pathname, const int mode){
             free(file_e);
             return NULL;
         }
-        // else if(!file_e && i == token_length - 1){
+        // else if(status == EXIT_FAILURE && i == token_length - 1){
         //     printf("File does not exist, making file...\n");
         //     make_file();
         // }
@@ -188,6 +181,7 @@ file_handle *f_open(const char *pathname, const int mode){
     file_handle *to_return = malloc(sizeof(file_handle));
     to_return->cur_rindex = 0; 
     to_return->cur_windex = 0;
+    to_return->is_dir = 0;
     strcpy(to_return->name,file_e->name);
     to_return->size = file_e->size;
     to_return->first_FAT_idx = file_e->first_FAT_idx;
@@ -314,8 +308,6 @@ int f_seek(file_handle *stream, long offset, int position){
         bit_num = offset % BLOCK_SIZE;
         int base_bit = find_offset(block_num) + bit_num;
         //fread(cblock, 512, 1, disk);
-        stream->cur_rchar = (char*)&base_bit;
-        stream->cur_wchar = (char*)&base_bit;
         stream->cur_rindex = base_bit;
         stream->cur_windex = base_bit;
         return EXIT_SUCCESS;
@@ -340,46 +332,81 @@ int f_remove(file_handle *stream){
     //returns EXIT_SUCCESS if successfully deleted or error
 }
 
-// file_header *f_opendir(const char *pathname){
-//     //opens a directory file for reading and returns a file_header
-//     fat_entry *fat_e = malloc(sizeof(fat_entry));
-//     file_header *file_e = malloc(sizeof(file_header));
-//     long cur_block = 0;
+file_handle *f_opendir(const char *pathname){
+    file_header *file_e = malloc(sizeof(file_header));
+    long cur_block = 0;
 
-//     //tokenizing the pathname
-//     int token_length = 0;
-//     char** tokens = tokenize(pathname,&token_length,"/");
+    //tokenizing the pathname
+    int token_length = 0;
+    char** tokens = tokenize(pathname,&token_length,"/");
     
-//     //seeking the root directory fat entry
-//     fseek(disk,find_offset(fat_offset),SEEK_SET); 
-//     fread(fat_e,sizeof(*fat_e),1,disk);
+    //***check if open files already contains the same file, then don't open
 
-//     //seeking the data block for root
-//     fseek(disk,find_offset(cur_block),SEEK_SET);
-//     fread(file_e,sizeof(*file_e),1,disk);
+    //seeking the root directory fat entry
+    fat_entry *fat_e = &fat_table[0];
 
-//     //finding file from directory repeatedly
-//     for(int i = 0; i < token_length; i++){
-//         file_e = find_file_from_directory(file_e,fat_e,tokens[i]);
-//         //update fat_entry
-//         if(!file_e){
-//             printf("Directory not found, exiting f_opendir\n");
-//             f_error = FILE_NOT_FOUND;
-//             return NULL;
-//         }
-//         fat_e = &fat_table[file_e->first_FAT_idx];
-//     }
-//     return file_e;
+    //seeking the data block for root
+    fseek(disk,find_offset(0),SEEK_SET);
+    fread(file_e,sizeof(*file_e),1,disk);
 
-//     //cleaning up
-//     for(int i = 0; i < token_length; i++){
-//         free(tokens[i]);
-//     }
-//     free(tokens);
-//     return NULL;
-// }
+    int status = 0;
+    //finding file from directory repeatedly
+    for(int i = 0; i < token_length; i++){
+        status = find_file_from_directory(file_e,fat_e,tokens[i]);
+        
+        //error checking
+        if(status == EXIT_FAILURE){
+            for(int i = 0; i < token_length; i++){
+                free(tokens[i]);
+            }
+            free(tokens);
+            free(file_e);
+            printf("FILE NOT FOUND\n");
+            return NULL;
+        }
+        //update fat_entry
+        fat_e = &fat_table[file_e->first_FAT_idx];
+    }
+    
+    //making a new file handle
+    file_handle *to_return = malloc(sizeof(file_handle));
+    to_return->cur_rindex = 0; 
+    to_return->cur_windex = -1;
+    to_return->is_dir = 1;
+    strcpy(to_return->name,file_e->name);
+    to_return->size = file_e->size;
+    to_return->first_FAT_idx = file_e->first_FAT_idx;
 
-file_header *f_readdir(file_header *directory){
+    //putting the file handle into the open_files array
+    int status1 = 0;
+    for(int i = 0; i < NUM_OPEN_FILES; i++){
+        if(!open_files[i]){
+            open_files[i] = to_return;
+            status1 = 1;
+            break;
+        }
+    }
+    if(!status1){
+        printf("Max number of open files reached\n");
+        for(int i = 0; i < token_length; i++){
+            free(tokens[i]);
+        }
+        free(tokens);
+        free(file_e);
+        return NULL;
+    }
+
+    //cleaning up
+    for(int i = 0; i < token_length; i++){
+        free(tokens[i]);
+    }
+    free(tokens);
+    free(file_e);
+    return to_return;
+}
+
+
+file_handle *f_readdir(dir_header *directory){
     //returns the next file_header in the directory, updates the pointer to the current file
 }
 
@@ -524,9 +551,9 @@ int main(){
     f_init();
 
     file_handle *temp = f_open("beemovie",READ_ONLY);
-    char *a = malloc(100);
-    temp->cur_rindex = 470;
-    f_read(a,100,1,temp);
+    char *a = malloc(10);
+    temp->cur_rindex = 0;
+    f_read(a,10,1,temp);
 
     // f_mkdir("/next","e");
     // file_handle* temp = f_open("/",READ_ONLY);
