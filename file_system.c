@@ -261,7 +261,7 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         if(cur_block == stream->first_FAT_idx){
             disk_offset += FILE_HEADER_BYTES;
         }else{
-            disk_offset -= stream->cur_rindex % BLOCK_SIZE;
+            disk_offset = disk_offset - (stream->cur_rindex % BLOCK_SIZE);
         }
         printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
         fseek(disk,disk_offset,SEEK_SET);
