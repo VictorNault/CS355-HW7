@@ -1,10 +1,15 @@
 #ifndef FILE_SYSTEM_H
 #define FILE_SYSTEM_H
 
+//errors
+#define E_FILE_NOT_FOUND 2
+#define E_OUT_OF_BOUNDS 3
+#define E_NOT_DIR 4
+#define E_NO_SPACE 5
 
-
+//modes
 #define READ_ONLY 1
-#define WRIT_EONLY 2
+#define WRITE_ONLY 2
 #define READ_WRITE 3
 #define APPEND 4
 
@@ -37,6 +42,17 @@ typedef struct dir_header { //16 bytes total, 15 dir_entries, 16 byte padding
     char padding[16]; //junk
     dir_entry data_in_first_block[15]; //15 dir_entries
 }dir_header;
+
+//directory handle
+typedef struct dir_handle { //24 bytes total
+    char name[NAME_BYTES]; //name of file
+    u_int8_t is_dir; //is the file a directory
+    size_t r_index; //current read index in bytes
+    dir_entry * cur_entry; //current write index in bytes
+    size_t size; //size of file in bytes
+    u_int16_t first_FAT_idx; //first FAT entry = first block of file
+}dir_handle;
+
 
 void f_init();
 file_handle *f_open(const char *pathname, const int mode);
