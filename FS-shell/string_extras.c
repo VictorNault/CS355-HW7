@@ -25,3 +25,11 @@ char * trimStr(char * str){
     return str_copy;
 }
 
+
+int countChar(char * str,char target){
+    int count = 0;
+    for (int i = 0; i < strlen(str); i++){
+        if (str[i] == target)count++;
+    }
+    return count;
+}

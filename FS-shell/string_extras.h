@@ -7,5 +7,5 @@
 
 
 char * trimStr(char * str);
-
+int countChar(char * str,char target);
 #endif

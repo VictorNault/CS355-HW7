@@ -4,6 +4,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "string_extras.h"
+#include <dirent.h>
+#include <sys/types.h>
 // char ** splitSemiColon(char * stringToSplit, int * numCmds){
     // char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
     // strcpy(stringToSplitCopy, stringToSplit); 
@@ -54,7 +56,7 @@
 //     return tokens;
 // }
 
-char ** tokenize(char * cmd, int * numCmds){
+char ** tokenize2(char * cmd, int * numCmds){
     if(strcmp(cmd,"") == 0){
         *numCmds = 0;
         return NULL;
@@ -109,28 +111,31 @@ char ** tokenize(char * cmd, int * numCmds){
         strcpy(tokens[tok_idx],(const char *) prev_ptr);
 
     }
+    free(cmdCopy);
     return tokens;
 }
 
-void iterate(int length, char ** tokens){
-    // printf("%d\n", length);
-    for (int i = 0 ; i < length; i++){
-        printf("%s\n",tokens[i]);
-        int len = strlen(tokens[i]);
-    }
-}
+// void iterate(int length, char ** tokens){
+//     // printf("%d\n", length);
+//     for (int i = 0 ; i < length; i++){
+//         printf("%s\n",tokens[i]);
+//         int len = strlen(tokens[i]);
+//     }
+// }
+// #include <stdio.h>
+// int ls(char * path){
+//     DIR * directory = opendir(path);
+//     struct dirent * curdir = readdir(directory);
+//     while(curdir){
 
+//         printf("%s\n", curdir->d_name);
+//         curdir = readdir(directory);
+//     }
+//     return 0;
+// }
 
-int main(){
-    int numCmds = 0;
-    while (1){
-    char * commandToParse = readline("\033[1;32mprompt$ \001\e[0m\002"); 
-    char ** toks =  tokenize(commandToParse, &numCmds);     
-    // printf("%d\n",numCmds);
-    iterate(numCmds,toks);
-    }
-
-
-}
+// int main(){
+//     ls("/home/kbritt1/Documents/cs355_Hw/CS355-HW7/FS-shell/");
+// }
 
 

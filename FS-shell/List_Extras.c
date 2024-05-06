@@ -13,10 +13,13 @@ int delete_process(List *l, Process_Props * process) {
     Process_Props * node_data;
     struct node *last_n = l->head;
     struct node *n = l->head->next;
-    if(n == NULL){
+    if(n == NULL && last_n != NULL){
         deleteHead(l);
         free(last_n->data);
         free(last_n);
+        return EXIT_SUCCESS;
+    }
+    else if(n == NULL){
         return EXIT_SUCCESS;
     }
     node_data = n->data;

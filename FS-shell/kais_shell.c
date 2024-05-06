@@ -1,42 +1,11 @@
 #include "common.h"
-
-char * delimiters = " \n";
+#define INDIRECT -11395
+char * delims= " \n";
 pid_t shellPid;
 List * processes;
 struct termios shellTermios;
 
-// to do remove leading and trailing white spaces
-char ** splitSemiColon(char * stringToSplit, int * numCmds){
-    char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
-    strcpy(stringToSplitCopy, stringToSplit); 
-    char * token = strtok(stringToSplitCopy,";");
-    *numCmds = 0;
-    while (token != NULL){
-        (*numCmds)++;
-        token = strtok(NULL,";");
-    }
-    if (*numCmds == 0){ //nothing was passed
-        return NULL;
-    }
-    free(stringToSplitCopy);
-
-    char ** commands = malloc(sizeof(char*) * (*numCmds));
-    stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
-    strcpy(stringToSplitCopy, stringToSplit); 
-    token = strtok(stringToSplitCopy,";");
-    commands[0] = malloc(sizeof(char) * strlen(token)+1);
-    strcpy(commands[0], token);
-    for (int i = 1; i < *numCmds; i++){
-        token = strtok(NULL,";");
-        commands[i] = malloc(sizeof(char) * strlen(token)+1);
-        strcpy(commands[i], token);
-    }
-    free(stringToSplitCopy);
-    return commands;
-
-}
-
-char ** splitStringFromDelims(char * stringToSplit, int * cmdLen, int * background){
+char ** splitStringFromDelims(char * stringToSplit, int * cmdLen, int * background, char * delimiters){
     *background = 0; 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
     char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
@@ -69,6 +38,7 @@ char ** splitStringFromDelims(char * stringToSplit, int * cmdLen, int * backgrou
         *background = TRUE;
         free(tokenList[(*cmdLen)-1]); //freeing malloced &
         tokenList[(*cmdLen)-1] = NULL;
+        (*cmdLen)--;
         // char ** temp = (char ** ) malloc(sizeof(char *) * ((*cmdLen)-1));
         // for(int i = 0; i < *cmdLen; i++){
 
@@ -80,7 +50,7 @@ char ** splitStringFromDelims(char * stringToSplit, int * cmdLen, int * backgrou
         *background = TRUE;
 
     }
-    // for (int i = 0; i < count; i++){
+    // for (int i = 0; i < *cmdLen; i++){
     //     printf("%s testing", tokenList[i]);
     // }
     // printf("count: %d\n", cmdLen);
@@ -116,16 +86,21 @@ int getNthHistory(int n, char *** currentCommand, int top, int * cmdLen, int * b
 
         free(*currentCommand);
         printf("%s\n",commandCopy);
-        *currentCommand = splitStringFromDelims(commandCopy, cmdLen, background);
-        for (int i = 0; i < *cmdLen; i++){
-            // printf("\n%d: %s\n",i,currentCommand[i]);
-        }
+        *currentCommand = splitStringFromDelims(commandCopy, cmdLen, background, delims);
+        // for (int i = 0; i < *cmdLen; i++){
+        //     // printf("\n%d: %s\n",i,currentCommand[i]);
+        // }
         free(commandCopy);
         free(history);
         return 1;
 }
 
 int main(){
+    f_init();
+    FILE * fsptr = fopen("fake_disk", "r+");
+    disk = fsptr; // mounting disk :) 
+    char * destFile; // for > >> <;
+    int w_mode; //write mode
     int status;
     shellPid = getpid();
 
@@ -164,10 +139,11 @@ int main(){
 
     int compare = regcomp(&nregex,"^![0-9]+$",REG_EXTENDED); //match numbers after ! \b is word boundry
     int dashCompare = regcomp(&dashNRegex,"^!-[0-9]+$",REG_EXTENDED);
+    global_workingPath = "/";
     while(TRUE){
         int addToHistory = TRUE;
-        // printf("\033[1;32m%s$\001\e[0m\002", getenv("USER")); // trying different prompt string
-        char * commandToParse = readline("\033[1;32mprompt$ \001\e[0m\002"); 
+        printf("\033[1;32m%s@\001\e[0m\002", global_workingPath); // trying different prompt string
+        char * commandToParse = readline("\033[1;32mprompt \001\e[0m\002");
         if (!commandToParse){
             printf("\n");
             sigset = (sigset_t*) malloc(sizeof(sigset_t));
@@ -185,6 +161,7 @@ int main(){
             free(history);
             regfree(&nregex);
             regfree(&dashNRegex);
+            f_terminate();
             exit(EXIT_SUCCESS);
         } 
 
@@ -195,7 +172,7 @@ int main(){
 
 
         int numCmds; // number of semicolon seperated commands
-        char ** commandList = splitSemiColon(commandToParse, &numCmds);
+        char ** commandList = tokenize2(commandToParse, &numCmds);
         for (int i = 0; i < numCmds; i++){
         char * trimmedCommand = trimStr(commandList[i]);
         free(commandList[i]);
@@ -207,10 +184,77 @@ int main(){
         strcpy(commandCopy, commandList[i]);
         int commandLength; //split string from delim
         int background;
-        char ** currentCommand = splitStringFromDelims(commandCopy, &commandLength, &background);
-        free(commandCopy);
-        
+
+        // for now redirection is only supported with 1 file which is after the only >, >>, or < 
+        int cmdWRedirectLen;
+        char ** commandWRedirect = splitStringFromDelims(commandCopy, &cmdWRedirectLen,&background,"><");
+        if((cmdWRedirectLen) == 2){
+            int numgt = countChar(commandCopy,'>');
+            int numlt = countChar(commandCopy,'<');
+            if (numgt == 2){
+                w_mode = APPEND;
+            }
+            else if (numgt == 1){
+                w_mode = WRITE_ONLY;
+            }
+            if (numlt == 1){
+                w_mode = INDIRECT;
+            }
+            destFile = trimStr(commandWRedirect[1]);
+            printf("cmdWR1: %s, cmdWR2: %s\n", commandWRedirect[0],destFile);
+        }
+
+
+        char ** currentCommand = splitStringFromDelims(commandWRedirect[0], &commandLength, &background, delims);
+        for (int i = 0; i < cmdWRedirectLen; i++){
+            free(commandWRedirect[i]);
+        }  
+        free(commandWRedirect);
+        cmdWRedirectLen = 0;
+
         if (currentCommand == NULL) continue;
+
+        if (strcmp(currentCommand[0],"test") == 0){
+            if (commandLength > 1){
+                testing(currentCommand[1]);
+            }
+            else{
+                testing("/");
+            }
+        for (int i = 0; i < commandLength; i++){
+        free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            continue;
+        }
+        
+
+        if (strcmp(currentCommand[0],"mkdir") == 0){
+            if (commandLength > 1){
+                mkdirFS(currentCommand, commandLength);
+            }
+            else{
+                printf("\033[0;31mError:\001\e[0m\002 Pass at least one file name\n");
+
+            }
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            continue;
+        }
+
+        if (strcmp(currentCommand[0],"ls") == 0){
+            status = ls(currentCommand, commandLength);
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            continue;
+        }
 
         if (strcmp(currentCommand[0],"exit") == 0) {
             
@@ -235,6 +279,7 @@ int main(){
             free(history);
             regfree(&nregex);
             regfree(&dashNRegex);
+            f_terminate();
             exit(0);
         }
         
@@ -297,6 +342,7 @@ int main(){
         }
              
         if (strcmp(currentCommand[0],"cat") == 0){
+            printf("background = %d\n", background);
             pid_t pid = fork();
             if (pid == 0){
                 setpgrp();
@@ -305,9 +351,10 @@ int main(){
                 sigprocmask(SIG_SETMASK,&newset,NULL);
                 cat(currentCommand,commandLength,NULL);
                 return EXIT_SUCCESS;
-            }setpgid(pid,pid);
+            }
+            setpgid(pid,pid);
             Process_Props * current_process = newProcess_Props_nt(pid, !background,commandList[i]);
-            add(processes, current_process); //This doesn ot work since fork creates own address space :(
+            add(processes, current_process);
             
             if (background == TRUE){
                 tcsetpgrp(STDIN_FILENO,shellPid);
@@ -317,15 +364,19 @@ int main(){
             else{
                 tcsetpgrp(STDIN_FILENO,pid);
                 waitpid(pid,&status,WUNTRACED);
-                current_process->hasTermios = TRUE;
+                if (WIFSTOPPED(status)) current_process->hasTermios = TRUE;
                 tcsetattr(STDIN_FILENO, TCSADRAIN ,&shellTermios);
                 tcsetpgrp(STDIN_FILENO,shellPid);
             }
             // add_history(commandList[i]);
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
             free(currentCommand);
             free(commandList[i]);
             continue;
         }
+
         
 
         if(strcmp(currentCommand[0],"bg") == 0){
@@ -512,7 +563,7 @@ int main(){
             else{
                 tcsetpgrp(STDIN_FILENO,pid);
                 waitpid(pid,&status,WUNTRACED);
-                current_process->hasTermios = TRUE;
+                if(WIFSTOPPED(status))current_process->hasTermios = TRUE;
                 tcsetattr(STDIN_FILENO, TCSADRAIN ,&shellTermios);
                 tcsetpgrp(STDIN_FILENO,shellPid);
             }
