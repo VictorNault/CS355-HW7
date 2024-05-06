@@ -255,9 +255,9 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         if(cur_block == stream->first_FAT_idx){
             disk_offset += FILE_HEADER_BYTES;
         }else{
-            disk_offset = disk_offset - (stream->cur_rindex % BLOCK_SIZE);
+            disk_offset = disk_offset;
         }
-        printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
+        // printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
         fseek(disk,disk_offset,SEEK_SET);
         fread(buffer,bytes_to_read,1,disk);
 
@@ -265,12 +265,11 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         memcpy(ptr + copy_offset,buffer,bytes_to_read);
         copy_offset += bytes_to_read;
         total_size -= bytes_to_read;
-
+        stream->cur_rindex += bytes_to_read;
         if(total_size == 0){
             free(buffer);
-            break; //break out the loop if we are done
+            return copy_offset;
         }
-
         //going to the next data block
         cur_block = cur_fat_entry.next;
         if(cur_block == -1){
@@ -280,7 +279,6 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
             return copy_offset;
         }
         cur_fat_entry = fat_table[cur_block];
-        stream->cur_rindex += bytes_to_read;
         free(buffer);
     }
 
@@ -289,6 +287,7 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
 
     return copy_offset;
 }
+
 
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //write some bytes to a file handle at the current position. 
