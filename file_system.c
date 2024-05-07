@@ -53,16 +53,16 @@ fat_entry *find_next_fat(fat_entry *current){
     return &fat_table[index];
 }
 
-void increase_file_size(file_handle *fh, int n){
+void set_file_size(file_handle *fh, int n){
     //updates size of a file in three places, file handle, file header, and dir entry
     //updating file handle
-    fh->size = fh->size + n;
+    fh->size = n;
 
     //updating file header
     file_header *temp = malloc(sizeof(file_header));
     fseek(disk,find_offset(fh->first_FAT_idx),SEEK_SET);
     fread(temp,sizeof(file_header),1,disk);
-    temp->size = temp->size + n;
+    temp->size = n;
     fseek(disk,find_offset(fh->first_FAT_idx),SEEK_SET);
     fwrite(temp,sizeof(file_header),1,disk);
     free(temp);
@@ -76,7 +76,7 @@ void increase_file_size(file_handle *fh, int n){
     //first block
     for(int i = 0; i < 15; i++){
         if(temp1->data_in_first_block[i].first_FAT_idx == fh->first_FAT_idx){
-            temp1->data_in_first_block[i].size = temp1->data_in_first_block[i].size + n;
+            temp1->data_in_first_block[i].size = n;
             fseek(disk,find_offset(fh->parent_FAT_idx),SEEK_SET);
             fwrite(temp1,sizeof(dir_header),1,disk);
             free(temp1);
@@ -95,7 +95,7 @@ void increase_file_size(file_handle *fh, int n){
         fread(dir_entries,BLOCK_SIZE,1,disk);
         for(int i = 0; i < 16; i++){
             if(dir_entries[i].first_FAT_idx == fh->first_FAT_idx){
-                dir_entries[i].size = dir_entries[i].size + n;
+                dir_entries[i].size = n;
                 fseek(disk,find_offset(cur_fat_idx),SEEK_SET);
                 fwrite(dir_entries,sizeof(dir_header),1,disk);
                 free(dir_entries);
@@ -385,13 +385,13 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         void *buffer = malloc(bytes_to_read);
 
         //reading from the current block
-        int disk_offset = find_offset(cur_block) + stream->cur_rindex % BLOCK_SIZE;
-        if(cur_block == stream->first_FAT_idx){
-            disk_offset += FILE_HEADER_BYTES;
-        }
-        if(multi_block_read){
-            disk_offset = disk_offset - stream->cur_rindex % BLOCK_SIZE;
-        }
+        int disk_offset = find_offset(cur_block) + ((stream->cur_rindex + FILE_HEADER_BYTES) % BLOCK_SIZE);
+        // if(cur_block == stream->first_FAT_idx){
+        //     disk_offset += FILE_HEADER_BYTES;
+        // }
+        // if(multi_block_read){
+        //     disk_offset = disk_offset - stream->cur_rindex % BLOCK_SIZE;
+        // }
         // printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
         fseek(disk,disk_offset,SEEK_SET);
         fread(buffer,bytes_to_read,1,disk);
@@ -407,6 +407,7 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         }
         //going to the next data block
         cur_block = cur_fat_entry.next;
+        multi_block_read = 1;
         if(cur_block == -1){
             printf("Read out of bounds\n");
             f_error = E_OUT_OF_BOUNDS;
@@ -438,7 +439,8 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     int data_block_offset = (stream->cur_windex + FILE_HEADER_BYTES) / BLOCK_SIZE;
     fat_entry *cur_fat_entry = &fat_table[stream->first_FAT_idx];
     int cur_block = stream->first_FAT_idx;
-
+    int multiblock_write = 0;
+    size_t total_size = size * nmemb;
     //setting the cur_fat_entry to that of the first block to read from
     for(int i = 0; i < data_block_offset; i++){
         cur_block = cur_fat_entry->next;
@@ -450,20 +452,22 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
             }
             //modifying size of file
             if(i < data_block_offset - 1){
-                increase_file_size(stream,BLOCK_SIZE);
+                set_file_size(stream,stream->size + BLOCK_SIZE);
             }else if(i == data_block_offset - 1){
-                increase_file_size(stream,(stream->cur_windex + FILE_HEADER_BYTES) % BLOCK_SIZE);
+                set_file_size(stream,stream->cur_windex);
             }
+            multiblock_write = 1;
         }
         cur_fat_entry = &fat_table[cur_block];
         
     }
+    assert(stream->size >= stream->cur_windex);
 
     //variables for writing
-    size_t total_size = size * nmemb;
+    
     int bytes_to_write = 0;
     int copy_offset = 0;
-
+    
     while(total_size >= 0){
         //setting how many bytes I'm reading in this current block
         bytes_to_write = BLOCK_SIZE - ((stream->cur_windex + FILE_HEADER_BYTES) % BLOCK_SIZE);
@@ -472,11 +476,14 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         }
 
         //writing to the current block
-        int disk_offset = find_offset(cur_block) + stream->cur_windex % BLOCK_SIZE;
-        if(cur_block == stream->first_FAT_idx){
-            disk_offset += FILE_HEADER_BYTES;
-        }
-        printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
+        int disk_offset = find_offset(cur_block) + ((stream->cur_windex + FILE_HEADER_BYTES) % BLOCK_SIZE);
+        // if(cur_block == stream->first_FAT_idx){
+        //     disk_offset += FILE_HEADER_BYTES;
+        // }
+        // if(multiblock_write){
+        //     disk_offset = disk_offset - stream->cur_windex % BLOCK_SIZE;
+        // }
+        printf("cur_block: %d\ndisk_offset mod 512:%d\n",cur_block,disk_offset % 512);
 
         fseek(disk,disk_offset,SEEK_SET);
         fwrite(ptr + copy_offset,bytes_to_write,1,disk);
@@ -485,12 +492,17 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         copy_offset += bytes_to_write;
         total_size -= bytes_to_write;
         stream->cur_windex += bytes_to_write;
+        //updating size
+        if(stream->cur_windex > stream->size){
+            set_file_size(stream,stream->cur_windex);
+        }
         if(total_size == 0){
             break; //break out the loop if we are done
         }
 
         //going to the next data block
         cur_block = cur_fat_entry->next;
+        multiblock_write = 1;
         if(cur_block == -1){
             //need to add a block to the end of the file
             cur_block = add_block_to_file(cur_fat_entry);
@@ -498,9 +510,9 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
                 return copy_offset;
             }
             if(total_size < BLOCK_SIZE){
-                increase_file_size(stream,total_size);
+                set_file_size(stream,stream->size + total_size);
             }else{
-                increase_file_size(stream,BLOCK_SIZE);
+                set_file_size(stream,stream->size + BLOCK_SIZE);
             }
         }
         cur_fat_entry = &fat_table[cur_block];
@@ -956,13 +968,16 @@ int main(){
     f_init();
 
     file_handle *temp = f_open("beemovie",READ_WRITE);
-    // char *a = "TESTTEST";
-    // f_seek(temp,475,SEEK_SET);
-    // f_write(a,sizeof(a),1,temp);
-
-    char *buffer = malloc(800);
+    char *a = "TEST!!!!@@@@";
+    f_seek(temp,0,SEEK_SET);
+    for(int i = 0; i < 100; i ++){
+        f_write(a,12,1,temp);
+    }
+    
+    char *buffer = malloc(1200);
     //f_seek(temp,480,SEEK_SET);
-    f_read(buffer,800,1,temp);
+    f_seek(temp,0,SEEK_SET);
+    f_read(buffer,1200,1,temp);
     //f_read(buffer,800,1,temp);
     // f_mkdir("/next","e");
     // file_handle* temp = f_open("/",READ_ONLY);
