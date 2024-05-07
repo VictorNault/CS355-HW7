@@ -4,6 +4,7 @@ int f_mkfile(const char *pathname, char *mode) {
     //make sure to update values for ./ and ../
     if (global_superblock->free_block == NONE_FREE) {
         printf("No free blocks, exiting f_mkdir\n");
+        errno = E_NO_SPACE;
         return EXIT_FAILURE;
     }
     
@@ -58,13 +59,13 @@ int f_mkfile(const char *pathname, char *mode) {
     fread(head_of_free_list, BLOCK_SIZE, 1, disk);
 
     free_datablock *second_free_block = malloc(sizeof(free_datablock));
-
-    if (head_of_free_list != NONE_FREE) {
+    int new_file_block
+    if (head_of_free_list->next != NONE_FREE) {
         fseek(disk, find_offset(head_of_free_list->next), SEEK_SET);
         fread(second_free_block, BLOCK_SIZE, 1, disk);
 
         // update and write free list
-        int new_file_block = head_of_free_list->next;
+        new_file_block = head_of_free_list->next;
         head_of_free_list->next = second_free_block->next;
         fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
         fwrite(head_of_free_list, BLOCK_SIZE, 1, disk);
@@ -111,8 +112,8 @@ int f_mkfile(const char *pathname, char *mode) {
     file_header *new_file = malloc(sizeof(file_header));
     strcpy(new_file->name, name);
     new_file->is_directory = FALSE;
-    new_dir->first_FAT_idx = new_file_block;
-    new_dir->size = new_dir_entry->size;
+    new_file->first_FAT_idx = new_file_block;
+    new_file->size = new_dir_entry->size;
     fseek(disk, find_offset(new_file_block), SEEK_SET);
     fwrite(new_file, BLOCK_SIZE, 1, disk);
     free(new_file);
