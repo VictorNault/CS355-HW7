@@ -15,12 +15,22 @@
 #define READ_WRITE 3
 #define APPEND 4
 
+//inside the directory data block, 32 bytes
+typedef struct dir_entry{
+    char name[NAME_BYTES];
+    u_int16_t first_FAT_idx; //first FAT entry, 2 bytes
+    u_int32_t size; //legnth of file in bytes, 4 bytes
+    u_int8_t uid; //owner's user ID
+    u_int8_t protection[PROT_BYTES]; //11 protection bytes (2 padding)
+    u_int8_t is_directory; 
+}dir_entry;
+
 //file handle
 typedef struct file_handle{ 
     char name[NAME_BYTES]; //name of file
     u_int8_t is_dir; //is the file a directory
-    size_t cur_rindex; //current read index in bytes
-    size_t cur_windex; //current write index in bytes
+    long cur_rindex; //current read index in bytes
+    long cur_windex; //current write index in bytes
     size_t size; //size of file in bytes
     u_int16_t first_FAT_idx; //first FAT entry = first block of file
     u_int16_t parent_FAT_idx; //first FAT entry of parent dir
@@ -67,7 +77,7 @@ int f_seek(file_handle *stream, long offset, int position);
 void f_rewind(file_handle *stream);
 int f_stat(file_handle *stream, file_header *stat_buffer);
 int f_remove(file_handle *stream);
-file_handle *f_opendir(const char *name);
+dir_handle *f_opendir(const char *name);
 dir_entry *f_readdir(dir_handle *directory);
 int f_closedir(file_header *stream);
 int f_mkdir(const char *pathname, char *mode);
