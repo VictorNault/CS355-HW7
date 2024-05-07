@@ -1,5 +1,5 @@
 #include "common.h"
-#include "CS355-HW7/file_system.h"
+#include "../CS355-HW7/file_system.h"
 
 //Design for parsing >, >>, < 
 
@@ -53,6 +53,14 @@ char * convertToAbsPath(char * relativePath){
     return abs_path;
 }
 
+void absPathFromDir(dir_handle * path, char * output){
+    path->r_index = 1; 
+    dir_entry * awa = f_readdir(path);
+    
+    strcat(output,awa->name);    
+    return;
+}
+
 // open dir test 
 void testing(char * path){
     // fseek(disk,17 * BLOCK_SIZE,SEEK_CUR);
@@ -72,15 +80,20 @@ void testing(char * path){
 }
 // cat displays the content of one or more files to the output.
 
-int cat(char ** command,int numFiles,FILE * dest){
-    char * buf = malloc(sizeof(char)*1024);
-    if (dest == NULL) dest = stdout;
+int cat(char ** command,int numFiles,char * dest, int mode){
+    char * buf = malloc(sizeof(char)*1);
+    file_handle * outFile = NULL;
+    if (dest != NULL){
+        char * outputPath = convertToAbsPath(dest);
+        outFile = f_open(outputPath,mode);
+        free(outputPath);
+    }
     if (numFiles == 1){ // just cat, read from stdin
         int status = 1;
         while (status != 0)
         {
            status = fread(buf,sizeof(char),1,stdin);
-           fwrite(buf,sizeof(char),1,dest);
+           printf("%c",*buf);
         } 
         free(buf);
         return 0;
@@ -88,19 +101,25 @@ int cat(char ** command,int numFiles,FILE * dest){
     // starting at 1 to cut out cat
     printf("size of command: %d",numFiles);
     for (int i = 1; i < numFiles; i++){
-        FILE * curFile = fopen(command[i],"r");
+        file_handle * curFile = f_open(command[i],READ_ONLY);
         if (curFile == NULL){
             printf("\033[0;31mError:\001\e[0m\002 No File or Directory\n");
             continue;
         }
-        int status = fread(buf, sizeof(char),1,curFile);
+        int status = f_read(buf, sizeof(char),1,curFile);
         // printf("%c",*buf);
-        while (status!= 0){
+        while (status != 0){
+            // printf("dest is null %d\n", dest == NULL);
             // printf("%c",*buf);
-            fwrite(buf,sizeof(char),1,dest);    
-            status = fread(buf, sizeof(char),1,curFile);
+            if (dest == NULL){
+                printf("%c",*buf);
+            }
+            else{
+                f_write(buf,sizeof(char),1,outFile);    
+            }
+            status = f_read(buf, sizeof(char),1,curFile);
         }
-        fclose(curFile);
+        // fclose(curFile);
     }
     free(buf); 
     return EXIT_SUCCESS;    
@@ -122,6 +141,7 @@ int ls(char ** command, int length){
 
     if (length == 1 || (length == 2 && l_flag == 1)){ // just ls
     dir_handle * directory = f_opendir(global_workingPath);
+    directory->r_index=2;
     if (!directory) {  // failed to open file
         // todo: handle case where it's not a directory but valid file (just print fstat :) )
         // int status = fstat(global_workingPath);
@@ -167,12 +187,15 @@ int ls(char ** command, int length){
             curdir = f_readdir(directory);
         }
     }
+    //f_closedir(directory);
 }
 
 //chmod changes the permissions mode of a file. Support absolute mode and symbolic mode.
 // will need to parse symbols and convert to octal.
 //u = owner, g = group, o = others, a = all, =, +, -, r,w,x. e.g u=rwx gives owner read, write, execute
-void  chmod(char * file){}; //will probably fwrite to specific bitsin the file header
+void  chmod(char * file){ //will probably fwrite to specific bitsin the file header
+    
+};
 
 //mkdir creates a directory
 void mkdirFS(char ** command, int commandLength){

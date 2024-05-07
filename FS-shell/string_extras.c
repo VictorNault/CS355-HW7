@@ -33,3 +33,15 @@ int countChar(char * str,char target){
     }
     return count;
 }
+
+int inStr(char * str, char * chars){
+    int num;
+    for (int i = 0; i < strlen(chars);i++){
+    num = countChar(str,chars[i]);
+        if (num > 0){
+            return 1;
+        }
+    }
+    return 0;
+
+}

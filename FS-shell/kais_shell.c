@@ -174,6 +174,7 @@ int main(){
         int numCmds; // number of semicolon seperated commands
         char ** commandList = tokenize2(commandToParse, &numCmds);
         for (int i = 0; i < numCmds; i++){
+        destFile = NULL;
         char * trimmedCommand = trimStr(commandList[i]);
         free(commandList[i]);
         commandList[i] = trimmedCommand;
@@ -226,6 +227,9 @@ int main(){
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
         
@@ -243,6 +247,9 @@ int main(){
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
 
@@ -253,6 +260,9 @@ int main(){
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
 
@@ -263,6 +273,9 @@ int main(){
             }
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             sigset = (sigset_t*) malloc(sizeof(sigset_t));
             sigfillset(sigset);
             sigprocmask(SIG_BLOCK,sigset,NULL);
@@ -338,42 +351,50 @@ int main(){
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
              
         if (strcmp(currentCommand[0],"cat") == 0){
             printf("background = %d\n", background);
-            pid_t pid = fork();
-            if (pid == 0){
-                setpgrp();
-                sigset_t newset;
-                sigemptyset(&newset);
-                sigprocmask(SIG_SETMASK,&newset,NULL);
-                cat(currentCommand,commandLength,NULL);
-                return EXIT_SUCCESS;
-            }
-            setpgid(pid,pid);
-            Process_Props * current_process = newProcess_Props_nt(pid, !background,commandList[i]);
-            add(processes, current_process);
+            cat(currentCommand,commandLength,destFile, w_mode);
+
+            // pid_t pid = fork();
+            // if (pid == 0){
+            //     setpgrp();
+            //     sigset_t newset;
+            //     sigemptyset(&newset);
+            //     sigprocmask(SIG_SETMASK,&newset,NULL);
+            //     cat(currentCommand,commandLength,destFile, w_mode);
+            //     return EXIT_SUCCESS;
+            // }
+            // setpgid(pid,pid);
+            // Process_Props * current_process = newProcess_Props_nt(pid, !background,commandList[i]);
+            // add(processes, current_process);
             
-            if (background == TRUE){
-                tcsetpgrp(STDIN_FILENO,shellPid);
-                printf("[%d]    %d\n",current_process->job_id,current_process->pid);
-                waitpid(pid,&status,WNOHANG|WUNTRACED);
-            }
-            else{
-                tcsetpgrp(STDIN_FILENO,pid);
-                waitpid(pid,&status,WUNTRACED);
-                if (WIFSTOPPED(status)) current_process->hasTermios = TRUE;
-                tcsetattr(STDIN_FILENO, TCSADRAIN ,&shellTermios);
-                tcsetpgrp(STDIN_FILENO,shellPid);
-            }
+            // if (background == TRUE){
+            //     tcsetpgrp(STDIN_FILENO,shellPid);
+            //     printf("[%d]    %d\n",current_process->job_id,current_process->pid);
+            //     waitpid(pid,&status,WNOHANG|WUNTRACED);
+            // }
+            // else{
+            //     tcsetpgrp(STDIN_FILENO,pid);
+            //     waitpid(pid,&status,WUNTRACED);
+            //     if (WIFSTOPPED(status)) current_process->hasTermios = TRUE;
+            //     tcsetattr(STDIN_FILENO, TCSADRAIN ,&shellTermios);
+            //     tcsetpgrp(STDIN_FILENO,shellPid);
+            // }
             // add_history(commandList[i]);
             for (int i = 0; i < commandLength; i++){
                 free(currentCommand[i]);
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
 
@@ -420,6 +441,9 @@ int main(){
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
         
@@ -461,6 +485,9 @@ int main(){
             }  
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
             continue;
         }
     
@@ -481,6 +508,7 @@ int main(){
             free(history);
             free(currentCommand);
             free(commandList[i]);
+            if (destFile != NULL) free(destFile);
             continue;   
         }
         if (commandLength == 1){
@@ -521,6 +549,7 @@ int main(){
                     }
                         free(currentCommand);
                         free(commandList[i]);
+                        if (destFile != NULL) free(destFile);
                         continue;
                 }
             }
@@ -577,7 +606,9 @@ int main(){
         free(currentCommand);
         free(commandList[i]);
         }
-        free(commandList);
+        free(commandList); 
         free(commandToParse);
+        if (destFile != NULL) free(destFile);
+ 
     }
 }

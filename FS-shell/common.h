@@ -47,7 +47,7 @@
 #include "List.h"
 #include "List_Extras.h"
 #include "node.h"
-#include "CS355-HW7/file_system.h"
+#include "../CS355-HW7/file_system.h"
 #include "built_in_commands.h"
 #include "commands.h"
 #include "Process_Props.h"

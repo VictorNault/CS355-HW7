@@ -8,4 +8,5 @@
 
 char * trimStr(char * str);
 int countChar(char * str,char target);
+int inStr(char * str, char * chars);
 #endif

@@ -6,6 +6,9 @@
 #include "string_extras.h"
 #include <dirent.h>
 #include <sys/types.h>
+#include <ctype.h>
+#define TRUE 1
+#define FALSE 0
 // char ** splitSemiColon(char * stringToSplit, int * numCmds){
     // char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
     // strcpy(stringToSplitCopy, stringToSplit); 
@@ -115,6 +118,113 @@ char ** tokenize2(char * cmd, int * numCmds){
     return tokens;
 }
 
+
+
+int * chmodParsing(char * input, int isDir, int * curperms){
+    //TODO : split based on +-= so group must follow perms;
+    // starting with octal
+    int * output = curperms;
+    output[0] = isDir % 1;
+    int isOctal = 1;
+    int len = strlen(input);
+    if (len == 3){
+        for (int i = 0; i < strlen(input); i++){
+            if (isdigit(input[i]) != 0 && (int)(input[i]-'0') < 8){
+                continue;
+            }
+            else{
+                isOctal = -1;
+            }
+        }
+    }
+    else isOctal = -1;
+    if (isOctal == 1){ // octal processing
+        int owner = (input[0]-'0');
+        int group = (input[1]-'0');
+        int all = input[2]-'0';
+        int perms[3] = {owner,group,all};
+        int octal = owner*100+group*10 + all;
+        for (int i = 0; i < 3; i++){
+            // r
+            if ((perms[i] & 4) != 0){
+                output[1+i*3] = 1;
+            }
+            //w
+            if ((perms[i] & 2) != 0){
+                output[1+i*3+1] = 1;
+            }
+            //x
+            if ((perms[i] & 1) != 0 ){
+                output[1+i*3+2] = 1;
+            }
+        } 
+        return output;
+    }
+    else{ // symbolic processing
+        int perms[3] = {0};
+        // finding which groups are being updated; 
+        int num_eq = countChar(input, '=');
+        int num_p = countChar(input, '+');
+        int num_s = countChar(input,'-');
+        if (num_eq+num_p+num_s != 1){
+            printf("Invalid mode '%s'\n", input);
+            return NULL;
+        }
+        if(inStr(input,"=+-") != 1){
+            printf("Invalid mode '%s'\n", input);
+        }
+        printf("%d",inStr(input,"o"));
+        if (inStr(input,"u") == 1) perms[0] = 1;
+                
+        if (inStr(input,"g") == 1) perms[1] = 1;
+                
+        if (inStr(input,"o") == 1) perms[2] = 1;
+
+        if (inStr(input,"a") == 1){
+            perms[0] = 1;
+            perms[1] = 1;
+            perms[2] = 1;
+        }
+
+        int rwx[3] = {0,0,0};
+
+        if (inStr(input,"r") == 1) rwx[0] = 1;
+                
+        if (inStr(input,"w") == 1) rwx[1] = 1;
+                
+        if (inStr(input,"x") == 1) rwx[2] = 1;
+
+        if(num_eq == 1){
+            for(int i = 0; i < 3; i++){
+                output[i] = 0;
+            } // making it fresh
+            for(int i = 0; i < 3; i++){
+                if (perms[i] == 0) continue;
+                output[1+i*3] = rwx[0];
+                output[1+i*3+1] = rwx[1];
+                output[1+i*3+2] = rwx[2];
+            }
+
+        if(num_p == 1){
+            for(int i = 0; i < 3; i++){
+                if (perms[i] == 0) continue;
+                output[1+i*3] = rwx[0];
+                output[1+i*3+1] = rwx[1];
+                output[1+i*3+2] = rwx[2];
+            }
+        }
+        if(num_s == 1){
+            for(int i = 0; i < 3; i++){
+                if (perms[i] == 0) continue;
+                output[1+i*3] = (rwx[0] == 1) ? 0 : rwx[0];
+                output[1+i*3+1] = (rwx[1] == 1) ? 0 : rwx[1];
+                output[1+i*3+2] = (rwx[2] == 1) ? 0 : rwx[2];
+            }
+        }   
+
+    }
+}
+}
 // void iterate(int length, char ** tokens){
 //     // printf("%d\n", length);
 //     for (int i = 0 ; i < length; i++){
@@ -135,7 +245,8 @@ char ** tokenize2(char * cmd, int * numCmds){
 // }
 
 // int main(){
-//     ls("/home/kbritt1/Documents/cs355_Hw/CS355-HW7/FS-shell/");
+//     int curperms[11] = {0};
+//     chmodParsing("ug=rwx",1,curperms);
 // }
 
 
