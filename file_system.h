@@ -6,6 +6,8 @@
 #define E_OUT_OF_BOUNDS 3
 #define E_NOT_DIR 4
 #define E_NO_SPACE 5
+#define E_PERMISSION_DENIED 6
+#define E_FILE_ALREADY_OPEN 7
 
 //modes
 #define READ_ONLY 1
@@ -21,6 +23,7 @@ typedef struct file_handle{
     size_t cur_windex; //current write index in bytes
     size_t size; //size of file in bytes
     u_int16_t first_FAT_idx; //first FAT entry = first block of file
+    u_int16_t parent_FAT_idx; //first FAT entry of parent dir
 }file_handle;
 
 //file header 
@@ -51,6 +54,7 @@ typedef struct dir_handle { //24 bytes total
     dir_entry * cur_entry; //current write index in bytes
     size_t size; //size of file in bytes
     u_int16_t first_FAT_idx; //first FAT entry = first block of file
+    u_int16_t parent_FAT_idx; //first FAT entry of parent dir
 }dir_handle;
 
 
@@ -64,7 +68,7 @@ void f_rewind(file_handle *stream);
 int f_stat(file_handle *stream, file_header *stat_buffer);
 int f_remove(file_handle *stream);
 file_handle *f_opendir(const char *name);
-file_handle *f_readdir(dir_header *directory);
+dir_entry *f_readdir(dir_handle *directory);
 int f_closedir(file_header *stream);
 int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);

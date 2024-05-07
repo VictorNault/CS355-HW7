@@ -8,10 +8,6 @@ int f_error = EXIT_SUCCESS;
 int is_initialized = 0;
 superblock *global_superblock;
 
-struct current_block{
-    char data[512];
-};
-
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
     char * stringToSplitCopy = malloc( sizeof(char) * (strlen(stringToSplit)+1));
@@ -57,7 +53,62 @@ fat_entry *find_next_fat(fat_entry *current){
     return &fat_table[index];
 }
 
-int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
+void increase_file_size(file_handle *fh, int n){
+    //updates size of a file in three places, file handle, file header, and dir entry
+    //updating file handle
+    fh->size = fh->size + n;
+
+    //updating file header
+    file_header *temp = malloc(sizeof(file_header));
+    fseek(disk,find_offset(fh->first_FAT_idx),SEEK_SET);
+    fread(temp,sizeof(file_header),1,disk);
+    temp->size = temp->size + n;
+    fseek(disk,find_offset(fh->first_FAT_idx),SEEK_SET);
+    fwrite(temp,sizeof(file_header),1,disk);
+    free(temp);
+
+    //updating dir entry
+    int cur_fat_idx = fh->parent_FAT_idx;
+    fat_entry cur_dir_fat = fat_table[cur_fat_idx];
+    dir_header *temp1 = malloc(sizeof(dir_header));
+    fseek(disk,find_offset(fh->parent_FAT_idx),SEEK_SET);
+    fread(temp1,sizeof(dir_header),1,disk);
+    //first block
+    for(int i = 0; i < 15; i++){
+        if(temp1->data_in_first_block[i].first_FAT_idx == fh->first_FAT_idx){
+            temp1->data_in_first_block[i].size = temp1->data_in_first_block[i].size + n;
+            fseek(disk,find_offset(fh->parent_FAT_idx),SEEK_SET);
+            fwrite(temp1,sizeof(dir_header),1,disk);
+            free(temp1);
+            return;
+        }
+    }
+    free(temp1);
+
+    dir_entry *dir_entries = malloc(sizeof(dir_entry) * 16);
+    cur_fat_idx = cur_dir_fat.next;
+    //subsequent blocks for a multiblock dir header
+    while(cur_fat_idx != -1){
+        cur_dir_fat = fat_table[cur_fat_idx];
+        
+        fseek(disk,find_offset(cur_fat_idx),SEEK_SET);
+        fread(dir_entries,BLOCK_SIZE,1,disk);
+        for(int i = 0; i < 16; i++){
+            if(dir_entries[i].first_FAT_idx == fh->first_FAT_idx){
+                dir_entries[i].size = dir_entries[i].size + n;
+                fseek(disk,find_offset(cur_fat_idx),SEEK_SET);
+                fwrite(dir_entries,sizeof(dir_header),1,disk);
+                free(dir_entries);
+                return;
+            }
+        }
+        cur_fat_idx = cur_dir_fat.next;
+    }
+    free(dir_entries);
+    printf("Didn't find dir_entry for the file in increase_file_size\n");
+}
+
+int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *parent_dir_FAT_idx){
     //returns 0 or 1 for a malloced file_header of the file we are trying to find
     dir_entry *cur_file = malloc(sizeof(dir_entry));
     fseek(disk,find_offset(dir->first_FAT_idx) + FILE_HEADER_BYTES,SEEK_SET);
@@ -65,11 +116,13 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
     fat_entry *cur_fat = fat;
     int total_size = FILE_HEADER_BYTES;
     do{
+        
         while(total_size < BLOCK_SIZE){
             total_size += sizeof(dir_entry);
             fread(cur_file,sizeof(dir_entry),1,disk);
             if(strcmp(cur_file->name, name) == 0){
                 printf("Successfully found file %s in directory %s\n",name,dir->name);
+                *parent_dir_FAT_idx = dir->first_FAT_idx;
                 fseek(disk,find_offset(cur_file->first_FAT_idx),SEEK_SET);
                 fread(dir,sizeof(file_header),1,disk);
                 free(cur_file);
@@ -86,7 +139,6 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
         cur_fat = find_next_fat(cur_fat);
         total_size = 0;
     }while(cur_fat->next != -1 && cur_fat->next != -2);
-
     free(cur_file);
     printf("File %s not found in directory %s\n",name,dir->name);
     return EXIT_FAILURE;
@@ -94,6 +146,44 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name){
     
 void update_file_header(file_header *file_to_update){
     //updates the file entry in the corresponding FAT entry and the data block header
+}
+
+int add_block_to_file(fat_entry *last_fat_entry){
+    //append a new block to the file, returns the index of the new block
+    //returns -1 if error
+    if(global_superblock->free_block == -1){
+        printf("No free block left, exiting...\n");
+        f_error = E_NO_SPACE;
+        return -1;
+    }
+    int second_free_idx = fat_table[global_superblock->free_block].next;
+    if(second_free_idx == -1){
+        //only one free block left, update superblock and write to disk
+        int free_block = global_superblock->free_block;
+        fat_table[free_block].next = -1;
+        global_superblock->free_block = -1;
+        last_fat_entry->next = free_block;
+        fseek(disk,0,0);
+        fwrite(global_superblock,sizeof(superblock),1,disk);
+        //Writing entire fat table to disk
+        fseek(disk,BLOCK_SIZE,SEEK_SET);
+        fwrite(fat_table,TOTAL_BLOCKS*sizeof(fat_entry),1,disk);
+        printf("Allocating the last free block %d to file\n",free_block);
+        return free_block;
+    }
+    fat_entry *first_free_fat = &fat_table[global_superblock->free_block];
+    fat_entry *second_free_fat = &fat_table[second_free_idx];
+    printf("Allocating a new block to the file, second free block is block %d\n",second_free_idx);
+    
+    //updating the tail fat_entry and free list
+    last_fat_entry->next = second_free_idx;
+    first_free_fat->next = second_free_fat->next;
+    second_free_fat->next = -1;
+
+    //Writing entire fat table to disk
+    fseek(disk,BLOCK_SIZE,SEEK_SET);
+    fwrite(fat_table,TOTAL_BLOCKS*sizeof(fat_entry),1,disk);
+    return second_free_idx;
 }
 
 void f_terminate(){
@@ -133,8 +223,7 @@ file_handle *f_open(const char *pathname, const int mode){
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
     
-    //***check if open files already contains the same file, then don't open
-
+    
     //seeking the root directory fat entry
     fat_entry *fat_e = &fat_table[0];
 
@@ -143,9 +232,10 @@ file_handle *f_open(const char *pathname, const int mode){
     fread(file_e,sizeof(*file_e),1,disk);
 
     int status = 0;
+    int parent_FAT_idx = 0;
     //finding file from directory repeatedly
     for(int i = 0; i < token_length; i++){
-        status = find_file_from_directory(file_e,fat_e,tokens[i]);
+        status = find_file_from_directory(file_e,fat_e,tokens[i],&parent_FAT_idx);
         
         //error checking
         if(status == EXIT_FAILURE && i < token_length - 1){
@@ -176,15 +266,34 @@ file_handle *f_open(const char *pathname, const int mode){
         //update fat_entry
         fat_e = &fat_table[file_e->first_FAT_idx];
     }
+
+    //***check if open files already contains the same file, then don't open
+    for(int i = 0; i < NUM_OPEN_FILES; i++){
+        if(open_files[i]->first_FAT_idx == file_e->first_FAT_idx){
+            printf("File already open, exiting f_open...\n");
+            f_error = E_FILE_ALREADY_OPEN;
+            return NULL;
+        }
+    }   
     
     //making a new file handle
     file_handle *to_return = malloc(sizeof(file_handle));
     to_return->cur_rindex = 0; 
     to_return->cur_windex = 0;
     to_return->is_dir = 0;
+    to_return->parent_FAT_idx = parent_FAT_idx;
     strcpy(to_return->name,file_e->name);
     to_return->size = file_e->size;
     to_return->first_FAT_idx = file_e->first_FAT_idx;
+
+    //adjusting the file handle based on mode
+    if(mode == READ_ONLY){
+        to_return->cur_windex = -1;
+    }else if(mode == WRITE_ONLY){
+        to_return->cur_rindex = -1;
+    }else if(mode == APPEND){
+        to_return->cur_windex = file_e->size;
+    }
 
     //putting the file handle into the open_files array
     int status1 = 0;
@@ -217,6 +326,13 @@ file_handle *f_open(const char *pathname, const int mode){
 size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //read the specified number of bytes from a file handle at the current position. 
     //returns the number of bytes read, or an error.
+
+    //check if we have permission to read
+    if(stream->cur_rindex == -1){
+        printf("No read permission, exiting f_read...\n");
+        f_error = E_PERMISSION_DENIED;
+        return 0;
+    }
 
     //the first block to read from
     int data_block_offset = (stream->cur_rindex + FILE_HEADER_BYTES) / BLOCK_SIZE;
@@ -254,8 +370,6 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         int disk_offset = find_offset(cur_block) + stream->cur_rindex % BLOCK_SIZE;
         if(cur_block == stream->first_FAT_idx){
             disk_offset += FILE_HEADER_BYTES;
-        }else{
-            disk_offset = disk_offset;
         }
         // printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
         fseek(disk,disk_offset,SEEK_SET);
@@ -288,10 +402,16 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     return copy_offset;
 }
 
-
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //write some bytes to a file handle at the current position. 
     //Returns the number of bytes written, or an error.
+
+    //check if we have permission to write
+    if(stream->cur_windex == -1){
+        printf("No write permission, exiting f_write...\n");
+        f_error = E_PERMISSION_DENIED;
+        return 0;
+    }
 
     //the first block to write to
     int data_block_offset = (stream->cur_windex + FILE_HEADER_BYTES) / BLOCK_SIZE;
@@ -302,9 +422,17 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     for(int i = 0; i < data_block_offset; i++){
         cur_block = cur_fat_entry->next;
         if(cur_block == -1){
-            printf("Write out of bounds\n");
-            f_error = E_OUT_OF_BOUNDS;
-            return 0;
+            //need to add a block to the end of the file
+            cur_block = add_block_to_file(cur_fat_entry);
+            if(cur_block == -1){ //no space
+                return 0;
+            }
+            //modifying size of file
+            if(i < data_block_offset - 1){
+                increase_file_size(stream,BLOCK_SIZE);
+            }else if(i == data_block_offset - 1){
+                increase_file_size(stream,(stream->cur_windex + FILE_HEADER_BYTES) % BLOCK_SIZE);
+            }
         }
         cur_fat_entry = &fat_table[cur_block];
         
@@ -326,8 +454,6 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         int disk_offset = find_offset(cur_block) + stream->cur_windex % BLOCK_SIZE;
         if(cur_block == stream->first_FAT_idx){
             disk_offset += FILE_HEADER_BYTES;
-        }else{
-            disk_offset = disk_offset - (stream->cur_rindex % BLOCK_SIZE);
         }
         printf("cur_block: %d\ndisk_offset:%d\n",cur_block,disk_offset);
 
@@ -337,7 +463,7 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         
         copy_offset += bytes_to_write;
         total_size -= bytes_to_write;
-
+        stream->cur_windex += bytes_to_write;
         if(total_size == 0){
             break; //break out the loop if we are done
         }
@@ -345,39 +471,18 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         //going to the next data block
         cur_block = cur_fat_entry->next;
         if(cur_block == -1){
-            //append a new block to the file
-            if(global_superblock->free_block == -1){
-                printf("No free block left, exiting f_write...\n");
-                f_error = E_NO_SPACE;
+            //need to add a block to the end of the file
+            cur_block = add_block_to_file(cur_fat_entry);
+            if(cur_block == -1){ //no space
                 return copy_offset;
             }
-            int second_free_idx = fat_table[global_superblock->free_block].next;
-            if(second_free_idx == -1){
-                //only one free block left, update superblock and write to disk
-                cur_block = global_superblock->free_block;
-                cur_fat_entry = &fat_table[cur_block];
-                cur_fat_entry->next = -1;
-                global_superblock->free_block = -1;
-                stream->cur_windex += bytes_to_write;
-                fseek(disk,0,0);
-                fwrite(global_superblock,sizeof(superblock),1,disk);
-                continue;
+            if(total_size < BLOCK_SIZE){
+                increase_file_size(stream,total_size);
+            }else{
+                increase_file_size(stream,BLOCK_SIZE);
             }
-            fat_entry *first_free_fat = &fat_table[global_superblock->free_block];
-            fat_entry *second_free_fat = &fat_table[second_free_idx];
-            printf("Allocating a new block to the file, second free block is block %d\n",second_free_idx);
-            
-            //updating the tail fat_entry and free list
-            cur_fat_entry->next = second_free_idx;
-            first_free_fat->next = second_free_fat->next;
-            second_free_fat->next = -1;
-
-            //***should I write to disk?
-
-            cur_block = second_free_idx;
         }
         cur_fat_entry = &fat_table[cur_block];
-        stream->cur_windex += bytes_to_write;
     }
 
     assert(total_size == 0);
@@ -440,9 +545,10 @@ file_handle *f_opendir(const char *pathname){
     fread(file_e,sizeof(*file_e),1,disk);
 
     int status = 0;
+    int parent_FAT_idx = 0;
     //finding file from directory repeatedly
     for(int i = 0; i < token_length; i++){
-        status = find_file_from_directory(file_e,fat_e,tokens[i]);
+        status = find_file_from_directory(file_e,fat_e,tokens[i],&parent_FAT_idx);
         
         //error checking
         if(status == EXIT_FAILURE){
@@ -465,10 +571,11 @@ file_handle *f_opendir(const char *pathname){
         return NULL;
     }
     //making a new file handle
-    file_handle *to_return = malloc(sizeof(file_handle));
-    to_return->cur_rindex = 0; 
-    to_return->cur_windex = -1;
+    dir_handle *to_return = malloc(sizeof(dir_handle));
+    to_return->r_index = 0; 
+    to_return->cur_entry = malloc(sizeof(dir_entry));
     to_return->is_dir = 1;
+    to_return->parent_FAT_idx = parent_FAT_idx;
     strcpy(to_return->name,file_e->name);
     to_return->size = file_e->size;
     to_return->first_FAT_idx = file_e->first_FAT_idx;
@@ -477,7 +584,7 @@ file_handle *f_opendir(const char *pathname){
     int status1 = 0;
     for(int i = 0; i < NUM_OPEN_FILES; i++){
         if(!open_files[i]){
-            open_files[i] = to_return;
+            open_files[i] = (file_handle *)to_return;
             status1 = 1;
             break;
         }
@@ -505,7 +612,7 @@ file_handle *f_opendir(const char *pathname){
 
 dir_entry * f_readdir(dir_handle *directory){
     //returns the next dir_entry in the directory, updates the pointer to the current file // working for single block
-    if (directory->r_index < 2|| directory->is_dir != 1 || directory->size < directory->r_index * sizeof(dir_entry)){ //we read to the end of dir_handle previously
+    if (directory->is_dir != 1 || directory->size < directory->r_index * sizeof(dir_entry)){ //we read to the end of dir_handle previously
         // dir_entry fail;
         // fail.first_FAT_idx = 0;
         return NULL;

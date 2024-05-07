@@ -93,7 +93,6 @@ typedef struct superblock {
     int table_offset; /* offset of FAT table region in blocks */
     int data_offset; /* data region offset in blocks */
     int free_block; /* head of free block list, index, if disk is full, -1 */
-    int fat_offset;
     char padding[SUPERBLOCK_PADDING];
 }superblock;
 
@@ -155,7 +154,6 @@ int main() {
     my_superblock.table_offset = TABLE_OFFSET;
     my_superblock.data_offset = TABLE_OFFSET + TABLE_BLOCKS;
     my_superblock.free_block = FIXED_FREEBLOCK;
-    my_superblock.fat_offset = TABLE_OFFSET;
     // padding can just be junk data
     fwrite(&my_superblock, SUPERBLOCK_BYTES, 1, global_write_fp);
 

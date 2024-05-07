@@ -11,7 +11,6 @@ typedef struct superblock {
     int table_offset; /* offset of FAT table region in blocks */
     int data_offset; /* data region offset in blocks */
     int free_block; /* head of free block list, index, if disk is full, -1 */
-    int fat_offset;
     char padding[SUPERBLOCK_PADDING];
 }superblock;
 
