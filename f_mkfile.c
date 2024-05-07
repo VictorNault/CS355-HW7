@@ -44,8 +44,8 @@ int f_mkfile(const char *pathname, char *mode) {
     }//file_e should be the parent directory
 
     // +1 for null char
-    int file_block = file_e->first_FAT_idx;
-    fseek(disk, find_offset(file_block), SEEK_SET);
+    int dir_block = file_e->first_FAT_idx;
+    fseek(disk, find_offset(dir_block), SEEK_SET);
     dir_header *parent_dir = malloc(sizeof(dir_header));
     //fclose(global_rw_fp);
     //global_rw_fp = fopen(FAKEDISK_NAME, "rb+");
