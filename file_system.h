@@ -76,12 +76,13 @@ int f_close(file_handle *stream);
 int f_seek(file_handle *stream, long offset, int position);
 void f_rewind(file_handle *stream);
 int f_stat(file_handle *stream, file_header *stat_buffer);
-int f_remove(file_handle *stream);
+int f_remove(const char *pathname);
 dir_handle *f_opendir(const char *name);
 dir_entry *f_readdir(dir_handle *directory);
 int f_closedir(file_header *stream);
 int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);
+void f_terminate();
 
 extern int f_error;
 extern FILE *disk;

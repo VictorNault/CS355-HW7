@@ -257,6 +257,7 @@ int add_block_to_file(fat_entry *last_fat_entry){
 void f_terminate(){
     fclose(disk);
     is_initialized = 0;
+    free(global_superblock);
 }
 
 void f_init(int user_id, char *disk_name){ //initializing the disk
@@ -396,7 +397,7 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //returns the number of bytes read, or an error.
 
     //check if we have permission to read
-    if(stream->cur_rindex == -1){
+    if(stream->cur_rindex == -1 || stream->is_dir){
         printf("No read permission, exiting f_read...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
@@ -496,7 +497,7 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //Returns the number of bytes written, or an error.
 
     //check if we have permission to write
-    if(stream->cur_windex == -1){
+    if(stream->cur_windex == -1 || stream->is_dir){
         printf("No write permission, exiting f_write...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
@@ -538,7 +539,7 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
             if(i < data_block_offset - 1){
                 set_file_size(stream,stream->size + BLOCK_SIZE);
             }else if(i == data_block_offset - 1){
-                set_file_size(stream,stream->cur_windex);
+                set_file_size(stream,stream->cur_windex + FILE_HEADER_BYTES);
             }
             multiblock_write = 1;
         }
@@ -577,8 +578,8 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         total_size -= bytes_to_write;
         stream->cur_windex += bytes_to_write;
         //updating size
-        if(stream->cur_windex > stream->size){
-            set_file_size(stream,stream->cur_windex);
+        if(stream->cur_windex > stream->size - FILE_HEADER_BYTES){
+            set_file_size(stream,stream->cur_windex + FILE_HEADER_BYTES);
         }
         if(total_size == 0){
             break; //break out the loop if we are done
@@ -607,9 +608,18 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     return copy_offset;
 }
 
-int f_close(file_handle *stream){
-    //close a file handle, cleans up memory in the open files list
-}
+// int f_close(file_handle *stream){
+//     //free the memory of the file handle, cleans up the open files list by setting the corresponding index to NULL
+//     for(int i = 0; i < NUM_OPEN_FILES; i++){
+//         if(open_files[i] && open_files[i]->first_FAT_idx == file_e->first_FAT_idx){
+//             printf("File already open, exiting f_open...\n");
+//             f_error = E_FILE_ALREADY_OPEN;
+//             return NULL;
+//         }
+//     }   
+
+//     free(stream);
+// }
 
 int f_seek(file_handle *stream, long offset, int position){
     //moving r and w indexes in the file handle
@@ -660,7 +670,7 @@ int f_stat(file_handle *stream, file_header *stat_buffer){
     //updates the stat_buffer struct
 }
 
-int f_remove(file_handle *stream){
+int f_remove(const char *pathname){
     //delete a file from disk
     //returns EXIT_SUCCESS if successfully deleted or error
 }
@@ -781,11 +791,11 @@ int f_closedir(file_header *stream){
 }
 
 int f_mkdir(const char *pathname, char *mode) {
-    // need to update for situation where only one free block (head of list)
+    // need to update for multiblock dir support
     //creates a new directory file in the specified location
-    //make sure to update values for ./ and ../
     if (global_superblock->free_block == NONE_FREE) {
         printf("No free blocks, exiting f_mkdir\n");
+        f_error = E_NO_SPACE;
         return EXIT_FAILURE;
     }
     
@@ -870,7 +880,7 @@ int f_mkdir(const char *pathname, char *mode) {
     strcpy(new_dir_entry->name, name);
     new_dir_entry->first_FAT_idx = new_dir_block;
     new_dir_entry->size = FILE_HEADER_BYTES + (2 * DIR_ENTRY_BYTES);
-    new_dir_entry->uid = 101;
+    new_dir_entry->uid = uid;
     new_dir_entry->protection[0] = TRUE;
     new_dir_entry->protection[1] = TRUE;
     new_dir_entry->protection[2] = TRUE;
@@ -1049,35 +1059,59 @@ int f_rmdir(const char *pathname){
 }
 
 int main(){
-    f_init(1,"fake_disk");
+    f_init(101,"fresh_disk");
 
-    file_handle *temp = f_open("beemovie",READ_WRITE);
-    char *a = "TEST!!!!@@@@";
-    f_seek(temp,0,SEEK_SET);
-    for(int i = 0; i < 100; i ++){
-        f_write(a,12,1,temp);
-    }
+    //***testing f_write
+    // file_handle *temp = f_open("beemovie",READ_WRITE);
+    // char *a = "TEST!!!!@@@@";
+    // f_seek(temp,0,SEEK_SET);
+    // for(int i = 0; i < 100; i ++){
+    //     f_write(a,12,1,temp);
+    // }
     
-    char *buffer = malloc(1200);
-    //f_seek(temp,480,SEEK_SET);
-    f_seek(temp,0,SEEK_SET);
-    f_read(buffer,1200,1,temp);
+    // char *buffer = malloc(1200);
+    // f_seek(temp,480,SEEK_SET);
+    // f_seek(temp,0,SEEK_SET);
+    // f_read(buffer,1200,1,temp);
     //f_read(buffer,800,1,temp);
-    // f_mkdir("/next","e");
-    // file_handle* temp = f_open("/",READ_ONLY);
-    // dir_header temp1;
-    // fseek(disk,find_offset(0),SEEK_SET);
-    // fread(&temp1, BLOCK_SIZE, 1, disk);
-    // dir_entry *a = malloc(32);
-    // temp->cur_rindex = 32;
-    // f_read(a,32,1,temp);
+
+
+    //***testin f_mkdir
     // f_mkdir("/next","e");
     // f_mkdir("/hi","e");
     // f_mkdir("/hiiii","e");
-    
     // f_mkdir("/hi/wow","e");
     // file_handle *test = f_open("/hiiii/",1);
     // file_handle *test1 = f_open("/hi/wow/",1);
+    // dir_header temp1;
+    // fseek(disk,find_offset(4),SEEK_SET);
+    // fread(&temp1, BLOCK_SIZE, 1, disk);
+
+    //***test f_mkfile
+    f_mkdir("/next","e");
+    f_mkfile("/test.txt","e");
+    f_mkfile("/next/test.txt","e");
+    file_handle *test = f_open("/test.txt",READ_WRITE);
+    //file_handle *test1 = f_open("/next/test.txt",1);
+    char chars[1000];
+    for(int i = 0; i < 1000; i ++){
+        chars[i] = '!';
+        if(i == 999){
+            chars[i] = '\0';
+        }
+    }
+    f_write(chars,1000,1,test);
+    // file_header temp1;
+    // fseek(disk,find_offset(3),SEEK_SET);
+    // fread(&temp1, BLOCK_SIZE, 1, disk);
+    char *answer = malloc(1000);
+    f_read(answer,1000,1,test);
+
+    free(answer);
+    // dir_entry *a = malloc(32);
+    // temp->cur_rindex = 32;
+    // f_read(a,32,1,temp);
+    // file_handle* temp = f_open("/",READ_ONLY);
     // f_seek(test,2,SEEK_SET);
     // f_mkdir("/next/test","e");
     f_terminate();
