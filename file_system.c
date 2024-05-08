@@ -327,10 +327,10 @@ file_handle *f_open(const char *pathname, const int mode){
             free(file_e);
             return NULL;
         }
-        // else if(status == EXIT_FAILURE && i == token_length - 1){
-        //     printf("File does not exist, making file...\n");
-        //     make_file();
-        // }
+        else if(status == EXIT_FAILURE && i == token_length - 1){
+            printf("File does not exist, making file...\n");
+            f_mkfile(pathname,mode);
+        }
 
         //update fat_entry
         fat_e = &fat_table[file_e->first_FAT_idx];
