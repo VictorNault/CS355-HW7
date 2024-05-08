@@ -7,6 +7,7 @@ fat_entry fat_table[TOTAL_BLOCKS];
 int f_error = EXIT_SUCCESS;
 int is_initialized = 0;
 superblock *global_superblock;
+int uid; //user id, 101 is the super user
 
 char ** tokenize(const char * stringToSplit, int * cmdLen, char* delimiters){ 
     //counting the number of arguments passed by calling strtok twice (not the most efficient :()
@@ -146,8 +147,57 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
     return EXIT_FAILURE;
 }
     
-void update_file_header(file_header *file_to_update){
-    //updates the file entry in the corresponding FAT entry and the data block header
+dir_entry *update_protection(int dir_FAT_idx, char *name, u_int8_t protection[]){
+    //updates the protection bytes of a dir_entry, if protection is NULL just return the protection bytes
+    dir_entry *to_return = malloc(sizeof(dir_entry));
+    int cur_fat_idx = dir_FAT_idx;
+    fat_entry cur_dir_fat = fat_table[cur_fat_idx];
+    dir_header *temp1 = malloc(sizeof(dir_header));
+    fseek(disk,find_offset(dir_FAT_idx),SEEK_SET);
+    fread(temp1,sizeof(dir_header),1,disk);
+    //first block
+    for(int i = 0; i < 15; i++){
+        if(strcmp(temp1->data_in_first_block[i].name,name) == 0){
+            if(protection){
+                for(int i = 0; i < 9; i++){ //copying the array
+                    temp1->data_in_first_block[i].protection[i] = protection[i];
+                }
+                fseek(disk,find_offset(dir_FAT_idx),SEEK_SET);
+                fwrite(temp1,sizeof(dir_header),1,disk);
+            }
+            *to_return = temp1->data_in_first_block[i];
+            free(temp1);
+            return to_return;
+        }
+    }
+    free(temp1);
+
+    dir_entry *dir_entries = malloc(sizeof(dir_entry) * 16);
+    cur_fat_idx = cur_dir_fat.next;
+    //subsequent blocks for a multiblock dir header
+    while(cur_fat_idx != -1){
+        cur_dir_fat = fat_table[cur_fat_idx];
+        
+        fseek(disk,find_offset(cur_fat_idx),SEEK_SET);
+        fread(dir_entries,BLOCK_SIZE,1,disk);
+        for(int i = 0; i < 16; i++){
+            if(strcmp(dir_entries[i].name,name) == 0){
+                if(protection){
+                    for(int i = 0; i < 9; i++){ //copying the array
+                        dir_entries[i].protection[i] = protection[i];
+                    }
+                    fseek(disk,find_offset(cur_fat_idx),SEEK_SET);
+                    fwrite(temp1,sizeof(dir_header),1,disk);
+                }
+                *to_return = dir_entries[i];
+                free(dir_entries);
+                return to_return;
+            }
+        }
+        cur_fat_idx = cur_dir_fat.next;
+    }
+    free(dir_entries);
+    return NULL;
 }
 
 int add_block_to_file(fat_entry *last_fat_entry){
@@ -209,11 +259,11 @@ void f_terminate(){
     is_initialized = 0;
 }
 
-void f_init(){ //initializing the disk
+void f_init(int user_id, char *disk_name){ //initializing the disk
     if(!is_initialized){
         //reading disk
-        disk = fopen("fake_disk","rb+");
-
+        disk = fopen(disk_name,"rb+");
+        uid = user_id;
         //reading superblock
         global_superblock = malloc(sizeof(superblock));
         fread(global_superblock,sizeof(superblock),1,disk);
@@ -352,6 +402,23 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         return 0;
     }
 
+    //check for user permission
+    if(uid != 101){ //101 is super user
+        dir_entry *my_de = update_protection(stream->parent_FAT_idx,stream->name,NULL);
+        if(uid == my_de->uid){
+            if(!my_de->protection[0]){
+                printf("No read permission, exiting f_read...\n");
+                f_error = E_PERMISSION_DENIED;
+                return 0;
+            }
+        }else if(!my_de->protection[6]){
+            printf("No read permission, exiting f_read...\n");
+            f_error = E_PERMISSION_DENIED;
+            return 0;
+        }
+        free(my_de);
+    }
+
     //the first block to read from
     int data_block_offset = (stream->cur_rindex + FILE_HEADER_BYTES) / BLOCK_SIZE;
     fat_entry cur_fat_entry = fat_table[stream->first_FAT_idx];
@@ -433,6 +500,23 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         printf("No write permission, exiting f_write...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
+    }
+
+    //check for user permission
+    if(uid != 101){ //101 is super user
+        dir_entry *my_de = update_protection(stream->parent_FAT_idx,stream->name,NULL);
+        if(uid == my_de->uid){
+            if(!my_de->protection[1]){
+                printf("No write permission, exiting f_write...\n");
+                f_error = E_PERMISSION_DENIED;
+                return 0;
+            }
+        }else if(!my_de->protection[7]){
+            printf("No write permission, exiting f_write...\n");
+            f_error = E_PERMISSION_DENIED;
+            return 0;
+        }
+        free(my_de);
     }
 
     //the first block to write to
@@ -965,7 +1049,7 @@ int f_rmdir(const char *pathname){
 }
 
 int main(){
-    f_init();
+    f_init(1,"fake_disk");
 
     file_handle *temp = f_open("beemovie",READ_WRITE);
     char *a = "TEST!!!!@@@@";

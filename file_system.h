@@ -85,6 +85,7 @@ int f_rmdir(const char *pathname);
 
 extern int f_error;
 extern FILE *disk;
+extern int uid;
 
 
 #endif 
