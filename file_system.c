@@ -115,6 +115,7 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
     dir_entry *cur_file = malloc(sizeof(dir_entry));
     fseek(disk,find_offset(dir->first_FAT_idx) + FILE_HEADER_BYTES,SEEK_SET);
     fread(cur_file,sizeof(dir_entry),1,disk);
+    int cur_idx = dir->first_FAT_idx;
     fat_entry *cur_fat = fat;
     int total_size = FILE_HEADER_BYTES;
     do{
@@ -132,18 +133,19 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
                 return EXIT_SUCCESS;
             }
         }
-        if(cur_fat->next == -1){
+        if(cur_idx == -1){
             free(cur_file);
             //printf("File %s not found in directory %s\n",name,dir->name);
             return EXIT_FAILURE;
         }
         fseek(disk,find_offset(cur_fat->next),SEEK_SET);
         fread(cur_file,sizeof(dir_entry),1,disk);
+        cur_idx = cur_fat->next;
         cur_fat = find_next_fat(cur_fat);
         total_size = 0;
-    }while(cur_fat->next != -1 && cur_fat->next != -2);
+    }while(cur_idx != -1);
     free(cur_file);
-    printf("File %s not found in directory %s\n",name,dir->name);
+    // printf("File %s not found in directory %s\n",name,dir->name);
     return EXIT_FAILURE;
 }
     
@@ -295,7 +297,6 @@ int inStr(char * str, char * chars){
         }
     }
     return 0;
-
 }
 
 int f_mkdir(const char *pathname, char *mode) {
@@ -433,11 +434,46 @@ int f_mkdir(const char *pathname, char *mode) {
     // add new block to parent dir (then write)
     int non_header_bytes_in_parent = parent_dir->size - FILE_HEADER_BYTES;
     int files_in_parent = non_header_bytes_in_parent / DIR_ENTRY_BYTES;
-    printf("Non_header_bytes: %d\nfiles_in_parent: %d\n",non_header_bytes_in_parent,files_in_parent);
-    parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
-    parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
-    fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
-    fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+    //printf("Non_header_bytes: %d\nfiles_in_parent: %d\n",non_header_bytes_in_parent,files_in_parent);
+    if(files_in_parent >= 15){
+        //parent dir is full, needs to check if the next block exists or allocate new block
+        int cur_idx = parent_dir->first_FAT_idx;
+        fat_entry* cur_fat = &fat_table[cur_idx];
+        while(cur_fat->next != -1){ //getting the last fat
+            cur_idx = cur_fat->next;
+            cur_fat = &fat_table[cur_idx];
+        }
+        dir_entry *dir_entries = malloc(BLOCK_SIZE); //getting the last dir entries block
+        fseek(disk,find_offset(cur_idx),SEEK_SET);
+        fread(dir_entries,BLOCK_SIZE,1,disk);
+        printf("Size: %d\n",parent_dir->size);
+        if(((parent_dir->size)/32)%16 != 0){
+            //if there is an empty spot in the last block, write to the last spot
+            dir_entries[((parent_dir->size)/32)%16] = *new_dir_entry;
+            parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+            fseek(disk,find_offset(cur_idx),SEEK_SET);
+            fwrite(dir_entries,BLOCK_SIZE,1,disk);
+            free(dir_entries);
+        }else{
+            //if everything is full, create a new block and put the new dir entry in the first spot
+            int idx = add_block_to_file(cur_fat);
+            fseek(disk,find_offset(idx),SEEK_SET);
+            fread(dir_entries,BLOCK_SIZE,1,disk);
+            dir_entries[0] = *new_dir_entry;
+            parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+            fseek(disk,find_offset(idx),SEEK_SET);
+            fwrite(dir_entries,BLOCK_SIZE,1,disk);
+            free(dir_entries);
+        }
+        fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
+        fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+    }else{
+        parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
+        parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+        fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
+        fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+    }
+    
 
 
     // finally make and write new dir itself
@@ -600,10 +636,41 @@ int f_mkfile(const char *pathname, char *mode) {
     int non_header_bytes_in_parent = parent_dir->size - FILE_HEADER_BYTES;
     int files_in_parent = non_header_bytes_in_parent / DIR_ENTRY_BYTES;
     printf("Non_header_bytes: %d\nfiles_in_parent: %d\n",non_header_bytes_in_parent,files_in_parent);
-    parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
-    parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
-    fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
-    fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+    if(files_in_parent == 15){
+        //parent dir is full, needs to check if the next block exists or allocate new block
+        int cur_idx = parent_dir->first_FAT_idx;
+        fat_entry cur_fat = fat_table[cur_idx];
+        while(cur_fat.next != -1){ //getting the last fat
+            cur_idx = cur_fat.next;
+            cur_fat = fat_table[cur_idx];
+        }
+        dir_entry *dir_entries = malloc(BLOCK_SIZE); //getting the last dir entries block
+        fseek(disk,find_offset(cur_idx),SEEK_SET);
+        fread(dir_entries,BLOCK_SIZE,1,disk);
+        if(((parent_dir->size)/32)%16 != 0){
+            //if there is an empty spot in the last block, write to the last spot
+            dir_entries[15] = *new_dir_entry;
+            parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+            fseek(disk,find_offset(cur_idx),SEEK_SET);
+            fwrite(dir_entries,BLOCK_SIZE,1,disk);
+            free(dir_entries);
+        }else{
+            //if everything is full, create a new block and put the new dir entry in the first spot
+            int idx = add_block_to_file(&cur_fat);
+            fseek(disk,find_offset(idx),SEEK_SET);
+            fread(dir_entries,BLOCK_SIZE,1,disk);
+            dir_entries[0] = *new_dir_entry;
+            parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+            fseek(disk,find_offset(idx),SEEK_SET);
+            fwrite(dir_entries,BLOCK_SIZE,1,disk);
+            free(dir_entries);
+        }
+    }else{
+        parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
+        parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
+        fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
+        fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+    }
 
 
     // finally make and write new file itself
@@ -668,7 +735,7 @@ file_handle *f_open(const char *pathname, const int mode){
             return NULL;
         }
         else if(status == EXIT_FAILURE && i == token_length - 1 && mode == READ_ONLY){
-            printf("File does not exist in read mode, exiting f_open\n");
+            printf("File %s does not exist in read mode, exiting f_open\n",file_e->name);
             f_error = E_FILE_NOT_FOUND;
             for(int i = 0; i < token_length; i++){
                 free(tokens[i]);
@@ -960,6 +1027,9 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
 
 int f_close(file_handle *stream){
     //free the memory of the file handle, cleans up the open files list by setting the corresponding index to NULL
+    if(!stream){
+        return EXIT_FAILURE;
+    }
     for(int i = 0; i < NUM_OPEN_FILES; i++){
         if(open_files[i] && open_files[i]->first_FAT_idx == stream->first_FAT_idx){
             //found the file
@@ -967,6 +1037,7 @@ int f_close(file_handle *stream){
         }
     }   
     free(stream);
+    return EXIT_SUCCESS;
 }
 
 int f_seek(file_handle *stream, long offset, int position){
@@ -1164,7 +1235,7 @@ int main(){
     // f_seek(temp,480,SEEK_SET);
     // f_seek(temp,0,SEEK_SET);
     // f_read(buffer,1200,1,temp);
-    // f_read(buffer,800,1,temp);
+    // // f_read(buffer,800,1,temp);
     // free(buffer);
     // f_close(temp);
 
@@ -1172,14 +1243,27 @@ int main(){
     f_mkdir("/next","e");
     f_mkdir("/jeig/hi","e"); //shouldn't work because jeig/ is not in root
     f_mkdir("/eigob;","e"); //shouldn't work because contains a bad character ';'
-    f_mkdir("/next","e");
+    f_mkdir("/next","e"); //shouldn't work because next already exists in root
     f_mkdir("/hi","e");
+    f_mkdir("hi2","e");
+    f_mkdir("hi3","e");
+    f_mkdir("hi4","e");
+    f_mkdir("hi5","e");
+    f_mkdir("hi6","e");
+    f_mkdir("hi7","e");
+    f_mkdir("hi8","e");
+    f_mkdir("hi9","e");
+    f_mkdir("hi10","e");
+    f_mkdir("hi11","e");
+    f_mkdir("hi12","e");
+    f_mkdir("hi13","e");
+    f_mkdir("hi14","e");
     f_mkdir("/hiiii","e");
     f_mkdir("/hi/wow","e");
     file_handle *test = f_open("/hiiii/",1);
     file_handle *test1 = f_open("/hi/wow/",1);
-    dir_header temp1;
-    fseek(disk,find_offset(3),SEEK_SET);
+    dir_entry temp1[16];
+    fseek(disk,find_offset(16),SEEK_SET);
     fread(&temp1, BLOCK_SIZE, 1, disk);
     f_close(test);
     f_close(test1);
