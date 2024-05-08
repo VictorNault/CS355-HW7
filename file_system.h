@@ -8,6 +8,8 @@
 #define E_NO_SPACE 5
 #define E_PERMISSION_DENIED 6
 #define E_FILE_ALREADY_OPEN 7
+#define E_NOT_FILE 8
+#define E_BAD_NAME 9
 
 //modes
 #define READ_ONLY 1
@@ -79,7 +81,7 @@ int f_stat(file_handle *stream, file_header *stat_buffer);
 int f_remove(const char *pathname);
 dir_handle *f_opendir(const char *name);
 dir_entry *f_readdir(dir_handle *directory);
-int f_closedir(file_header *stream);
+int f_closedir(dir_handle *stream);
 int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);
 void f_terminate();
