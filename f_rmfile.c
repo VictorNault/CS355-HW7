@@ -1,3 +1,28 @@
+void aux_insert_into_freelist(int fat_index_of_to_insert) {
+    if (global_superblock->free_block == NONE_FREE) {
+        free_datablock new_first_free_db;
+        new_first_free_db.next = -1;
+        global_superblock->free_block = new_first_free_db;
+        fseek(disk, find_offset(fat_index_of_to_insert), SEEK_SET);
+        fwrite(new_first_free_db, BLOCK_SIZE, 1, disk);
+        fseek(disk, 0, SEEK_SET);
+        fwrite(global_superblock, BLOCK_SIZE, 1, disk);
+    }
+    else {
+        free_datablock new_free_db;
+        struct free_datablock head_of_free_list;
+        fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+        fread(&head_of_free_list, BLOCK_SIZE, 1, disk);
+        new_free_db.next = head_of_free_list.next;
+        fseek(disk, find_offset(fat_index_of_to_insert), SEEK_SET);
+        fwrite(&new_free_db, BLOCK_SIZE, 1, disk);
+        head_of_free_list.next = fat_index_of_to_insert;
+        fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+        fwrite(&head_of_free_list, BLOCK_SIZE, 1, disk);
+        }
+    }
+}
+
 int f_rmfile(const char *pathname) {
     //tokenizing the pathname 
     int token_length = 0;
@@ -72,6 +97,7 @@ int f_rmfile(const char *pathname) {
     int ar_counter = 0;
     int block_to_modify_fat_index = -1;
     fat_entry curr_fat_entry = fat_table[parent_dir->first_FAT_idx];
+    dir_entry to_delete_dir_entry;
     int curr_fat_index = parent_dir->first_FAT_idx;
     for (int i = 0; i < files_in_parent_dir; i++) {
         if (possible_files_left_in_block == 0) {
@@ -87,6 +113,7 @@ int f_rmfile(const char *pathname) {
         if (strcmp(name, curr_dir_entry.name) == 0) {
             to_delete_file_index = i;
             to_delete_block_ar_index = ar_counter;
+            to_delete_dir_entry = curr_dir_entry;
             block_to_modify_fat_index = curr_fat_index;
             if (curr_dir_entry.is_directory == TRUE) {
                 // need "not file" error
@@ -135,7 +162,7 @@ int f_rmfile(const char *pathname) {
                 fread(block_to_modify_ar, BLOCK_SIZE, 1, disk);
                 block_to_modify_ar[to_delete_block_ar_index] = curr_dir_entry;
                 curr_block_ar[ar_counter - 1] = deleted_dir_entry;
-                // write earlier block back
+           fat_index_of_to_insert     // write earlier block back
                 fseek(disk, find_offset(block_to_modify_fat_index), SEEK_SET);
                 fwrite(block_to_modify_ar, BLOCK_SIZE, 1, disk);
             }
@@ -201,6 +228,9 @@ int f_rmfile(const char *pathname) {
         fat_table[last_fat_step_index] = empty_fat_entry;
         fat_table[double_last_fat_step_index] = terminating_fat_entry;
 
+        aux_insert_into_freelist(last_fat_step_index);
+
+        /*
         if (global_superblock->free_block == NONE_FREE) {
             free_datablock new_first_free_db;
             new_first_free_db.next = -1;
@@ -216,18 +246,40 @@ int f_rmfile(const char *pathname) {
             fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
             fread(&head_of_free_list, BLOCK_SIZE, 1, disk);
             new_free_db.next = head_of_free_list.next;
-            fseek(disk, find_offset(curr_fat_index), SEEK_SET);
+            //fseek(disk, find_offset(curr_fat_index), SEEK_SET);
+            fseek(disk, find_offset(last_fat_step_index), SEEK_SET);
             fwrite(&new_free_db, BLOCK_SIZE, 1, disk);
             head_of_free_list.next = curr_fat_index;
-            fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+            //fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+            fseek(disk, find_offset(last_fat_step_index), SEEK_SET);
             fwrite(&head_of_free_list, BLOCK_SIZE, 1, disk);
             }
         }
+        */
     }
 
     // now free all blocks of deleted file
 
+    int blocks_to_free = (to_delete_dir_entry.size / BLOCK_SIZE) + 1;
+    int fat_index_to_free = to_delete_dir_entry.first_FAT_idx;
+    int next_fat_index;
+    fat_entry fat_entry_to_free;
+    for (int i = 0; i < blocks_to_free; i++) {
+        aux_insert_into_freelist(fat_index_to_free);
+        fat_entry_to_free = fat_table[fat_index_to_free];
+        next_fat_index = fat_entry_to_free.next;
+        fat_table[fat_index_to_free] = empty_fat_entry;
+        fat_index_to_free = next_fat_index;
+    }
+
+    //struct free_datablock overwrite_db;
+    //struct free_datablock head_of_free_list;
+    //struct blk_to_free_fat_index = to_delete_dir_entry.first_FAT_idx;
+    //fseek(disk, find_offset(blk_to_free_fat_index))
+
     // write the up to date fat table
+    fseek(disk, SUPERBLOCK_BYTES, SEEK_SET);
+    fwrite(&fat_table, FATTABLE_BYTES, 1, disk);
 
     // free malloced stuff
     free(parent_dir);
