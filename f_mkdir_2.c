@@ -1,7 +1,6 @@
 int f_mkdir(const char *pathname, char *mode) {
-    // need to update for situation where only one free block (head of list)
+    // need to update for multiblock dir support
     //creates a new directory file in the specified location
-    //make sure to update values for ./ and ../
     if (global_superblock->free_block == NONE_FREE) {
         printf("No free blocks, exiting f_mkdir\n");
         errno = E_NO_SPACE;
