@@ -118,18 +118,28 @@ char ** tokenize2(char * cmd, int * numCmds){
     return tokens;
 }
 
+char * arrayToPermStr(u_int8_t * perms, int isDir){
+    char * output = malloc(sizeof(char)*11);
+    output[0] = (isDir == 1) ? 'd' : '-';
+    for (int i = 0; i < 3; i++){
+        output[1+i*3] = (perms[i*3] == 1) ? 'r' : '-';
+        output[1+i*3+1] = (perms[i*3+1] == 1) ? 'w' : '-';
+        output[1+i*3+2] = (perms[i*3+2] == 1) ? 'x' : '-';
+    }
+    output[10] = '\0';
+    return output;
+}
 
-
-int * chmodParsing(char * input, int isDir, int * curperms){
+u_int8_t * chmodParsing(char * input, u_int8_t isDir, u_int8_t * curperms){
     //TODO : split based on +-= so group must follow perms;
     // starting with octal
-    int * output = curperms;
+    u_int8_t * output = curperms;
     output[0] = isDir % 1;
-    int isOctal = 1;
-    int len = strlen(input);
+    u_int8_t isOctal = 1;
+    u_int8_t len = strlen(input);
     if (len == 3){
-        for (int i = 0; i < strlen(input); i++){
-            if (isdigit(input[i]) != 0 && (int)(input[i]-'0') < 8){
+        for (u_int8_t i = 0; i < strlen(input); i++){
+            if (isdigit(input[i]) != 0 && (u_int8_t)(input[i]-'0') < 8){
                 continue;
             }
             else{
@@ -139,11 +149,11 @@ int * chmodParsing(char * input, int isDir, int * curperms){
     }
     else isOctal = -1;
     if (isOctal == 1){ // octal processing
-        int owner = (input[0]-'0');
-        int group = (input[1]-'0');
-        int all = input[2]-'0';
-        int perms[3] = {owner,group,all};
-        int octal = owner*100+group*10 + all;
+        u_int8_t owner = (input[0]-'0');
+        u_int8_t group = (input[1]-'0');
+        u_int8_t all = input[2]-'0';
+        u_int8_t perms[3] = {owner,group,all};
+        u_int8_t octal = owner*100+group*10 + all;
         for (int i = 0; i < 3; i++){
             // r
             if ((perms[i] & 4) != 0){
@@ -158,14 +168,14 @@ int * chmodParsing(char * input, int isDir, int * curperms){
                 output[1+i*3+2] = 1;
             }
         } 
-        return output;
+        return curperms;
     }
     else{ // symbolic processing
-        int perms[3] = {0};
+        u_int8_t perms[3] = {0};
         // finding which groups are being updated; 
-        int num_eq = countChar(input, '=');
-        int num_p = countChar(input, '+');
-        int num_s = countChar(input,'-');
+        u_int8_t num_eq = countChar(input, '=');
+        u_int8_t num_p = countChar(input, '+');
+        u_int8_t num_s = countChar(input,'-');
         if (num_eq+num_p+num_s != 1){
             printf("Invalid mode '%s'\n", input);
             return NULL;
@@ -223,7 +233,9 @@ int * chmodParsing(char * input, int isDir, int * curperms){
         }   
 
     }
+    return curperms;
 }
+return NULL;
 }
 // void iterate(int length, char ** tokens){
 //     // printf("%d\n", length);
@@ -246,7 +258,9 @@ int * chmodParsing(char * input, int isDir, int * curperms){
 
 // int main(){
 //     int curperms[11] = {0};
-//     chmodParsing("ug=rwx",1,curperms);
+//     char output[] = "----------";
+//     arrayToPermStr(chmodParsing("ug=rwx",1,curperms),output);
+//     printf("\n%s\n", output);
 // }
 
 

@@ -96,14 +96,58 @@ int getNthHistory(int n, char *** currentCommand, int top, int * cmdLen, int * b
 }
 
 int main(){
-    f_init();
-    FILE * fsptr = fopen("fake_disk", "r+");
-    disk = fsptr; // mounting disk :) 
+
+    int validUser = FALSE;
+    char uid[4] = "000";
+    printf("\nPlease enter UID (0-255)\n");
+    fgets(uid,sizeof(uid),stdin);
+    validUser = TRUE;
+    int userNum =0;
+    for (int i = 2; i >= 0; i--){
+        if (isdigit(uid[i]) == FALSE && uid[i] != '\0' && uid[i] != '\n'){
+            validUser = FALSE;
+            printf("Please enter a valid user, %c not digit\n", uid[i]);
+            exit(EXIT_SUCCESS);
+
+        }
+    }
+
+    userNum = atoi(uid);
+    printf("uid: %s,%d ,userNUM\n",uid, userNum);
+    if(userNum > 255){
+        printf("%d invalid\n", userNum);
+        exit(EXIT_SUCCESS);
+    }
+    printf("WELCOME USER: %d\n",userNum);
+    
+
+    // mounting the file system
+    FILE * fsptr = NULL;// int ls(char * path){
+    DIR * directory = opendir(".");
+    struct dirent * curdir = readdir(directory);
+    while(curdir){
+
+        if (strcmp("DISK", curdir->d_name) == 0){
+            fsptr = fopen(curdir->d_name,"r+");
+        }
+        curdir = readdir(directory);
+    }
+    
+    if(fsptr != NULL){
+        disk = fsptr; // mounting disk 
+    }
+    else{
+        disk = makenewdisk(); // mounting new DISK
+    }
+    fclose(fsptr);
+    closedir(directory);
+
     char * destFile; // for > >> <;
     int w_mode; //write mode
     int status;
     shellPid = getpid();
-
+        
+    f_init(userNum,"DISK"); // pass user num and "DISK" 
     //declaring a sigset that contains every catchable signal except SIGCHLD
     sigset_t *sigset = (sigset_t*) malloc(sizeof(sigset_t));
     sigfillset(sigset);
@@ -142,8 +186,11 @@ int main(){
     global_workingPath = "/";
     while(TRUE){
         int addToHistory = TRUE;
-        printf("\033[1;32m%s@\001\e[0m\002", global_workingPath); // trying different prompt string
-        char * commandToParse = readline("\033[1;32mprompt \001\e[0m\002");
+        // printf("\033[1;32m%d@\001\e[0m\002", userNum); // trying different prompt string
+        char input[1000];
+        sprintf(input, "\033[1;32m%d@VHKB:%s \001\e[0m\002",userNum, global_workingPath);
+        char * commandToParse = readline(input);
+
         if (!commandToParse){
             printf("\n");
             sigset = (sigset_t*) malloc(sizeof(sigset_t));
@@ -254,7 +301,7 @@ int main(){
         }
 
         if (strcmp(currentCommand[0],"ls") == 0){
-            status = ls(currentCommand, commandLength);
+            status = ls(currentCommand, commandLength, destFile,w_mode);
             for (int i = 0; i < commandLength; i++){
                 free(currentCommand[i]);
             }  

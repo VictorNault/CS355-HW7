@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef COMMON2_H
+#define COMMON2_H
 #define _XOPEN_SOURCE 700
 #define TRUE 1
 #define FALSE 0
@@ -44,16 +44,7 @@
 #define DIR_ENTRY_BYTES 32
 
 #include <pthread.h>
-#include "List.h"
-#include "List_Extras.h"
-#include "node.h"
-#include "../CS355-HW7/file_system.h"
-#include "built_in_commands.h"
-#include "commands.h"
-#include "Process_Props.h"
-#include "sighandlers.h"
-#include "string_extras.h"
-#include "parser.h"
+
 #include <regex.h>
 #include <unistd.h>
 #include <string.h>
@@ -68,7 +59,19 @@
 #include <signal.h>
 #include <termios.h>       
 #include <dirent.h>
-
+#include <math.h>
+#include <sys/types.h>
+#include "List.h"
+#include "List_Extras.h"
+#include "node.h"
+#include "../CS355-HW7/file_system.h"
+#include "built_in_commands.h"
+#include "commands.h"
+#include "Process_Props.h"
+#include "sighandlers.h"
+#include "string_extras.h"
+#include "parser.h"
+#include "formatDISK.h"
 extern List * processes;
 extern pthread_mutex_t mutex; //defining the mutex
 extern pid_t shellPid;

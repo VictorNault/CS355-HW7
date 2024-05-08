@@ -10,12 +10,15 @@ kais_shell: Process_Props.o List.o commands.o node.o
 	make string_extras.o	
 	make built_in_commands.o
 	make parser.o
-	gcc -o kais_shell built_in_commands.o parser.o Process_Props.o node.o List.o List_Extras.o sighandlers.o kais_shell.o string_extras.o file_system.o -ggdb -lreadline -lpthread 
+	make formatDISK.o
+	gcc -o kais_shell built_in_commands.o parser.o Process_Props.o node.o List.o List_Extras.o sighandlers.o kais_shell.o string_extras.o file_system.o formatDISK.o -ggdb -lreadline -lpthread -lm 
 	rm -rf *.gch
 clean: 
 	rm -rf *.o 
 	rm -rf *.gch
 	rm -rf kais_shell
+formatDISK.o: formatDISK.c
+	gcc -c -g formatDISK.c
 node.o: node.h
 	gcc -c -g node.c
 List.o: node.h List.h

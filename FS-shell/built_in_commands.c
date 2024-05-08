@@ -41,6 +41,10 @@
 //     return tokenList;
 // }
 char * global_workingPath;
+
+// char * checkPerms(char * userID, file_handle){
+// }
+ // probably not right need to add / somewhere 
 char * convertToAbsPath(char * relativePath){
     if (relativePath[0] == '/'){ //recieved absolute path 
         return relativePath;
@@ -52,15 +56,21 @@ char * convertToAbsPath(char * relativePath){
     memcpy(abs_path+strlen(global_workingPath),relativePath, strlen(relativePath)+1);
     return abs_path;
 }
-
-void absPathFromDir(dir_handle * path, char * output){
-    path->r_index = 1; 
-    dir_entry * awa = f_readdir(path);
-    
-    strcat(output,awa->name);    
-    return;
-}
-
+//confirm path actually exisits first consider passing dir_handle instead of path name.
+// void absPathFromDir(char * path, char * output){
+//     dir_handle * cur_dir = f_opendir(path);
+//     if (cur_dir->name == "root"){
+//         strcat(output,"/");
+//         return;
+//     } 
+//     else{
+//     strcat(path, "/..");
+//     absPathFromDir(path, output);
+//     strcat(output,cur_dir->name);   
+//     f_closedir(cur_dir);
+//     return;
+// }
+// }
 // open dir test 
 void testing(char * path){
     // fseek(disk,17 * BLOCK_SIZE,SEEK_CUR);
@@ -127,10 +137,10 @@ int cat(char ** command,int numFiles,char * dest, int mode){
 
 
 //Will make a call to opendir, which returns a dir entry, which has list of file entry
-int ls(char ** command, int length){
+int ls(char ** command, int length, char * dest, int mode){
     int l_flag = 0;
     int skip_idx = -1;
-
+    file_handle * outFile = NULL;
     //checking for -l flag
     for(int i = 0; i < length;i++){
         if (strcmp(command[i],"-l") == 0){
@@ -156,10 +166,18 @@ int ls(char ** command, int length){
     dir_entry * curdir = f_readdir(directory);
     while(curdir){
             if (l_flag != 1){
-            printf("%s\n", curdir->name);
+                if (outFile == NULL) printf("%s\n", curdir->name); //stdout
+                else f_write(curdir->name,strlen(curdir->name)+1,1,outFile);
             }
-            else{
-                printf("%d protection %d %d %s\n",curdir->is_directory,curdir->uid,curdir->first_FAT_idx,curdir->name);
+            else{                    
+                char * permStr = arrayToPermStr(curdir->protection, curdir->is_directory);
+                if (outFile == NULL) printf("%s %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->name);
+                else{
+                    char str[256];
+                    sprintf(str,"%s %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->name);
+                    f_write(str,sizeof(str),1,outFile);
+                }
+                free(permStr);
             }
             curdir = f_readdir(directory);
     }
@@ -193,8 +211,11 @@ int ls(char ** command, int length){
 //chmod changes the permissions mode of a file. Support absolute mode and symbolic mode.
 // will need to parse symbols and convert to octal.
 //u = owner, g = group, o = others, a = all, =, +, -, r,w,x. e.g u=rwx gives owner read, write, execute
-void  chmod(char * file){ //will probably fwrite to specific bitsin the file header
-    
+void  chmod(file_handle * file, char * permissions){ //will probably fwrite to specific bitsin the file header
+    chmodParsing(permissions, file->is_dir, NULL); //file->permssions);
+
+    // need something to write changes to disk
+
 };
 
 //mkdir creates a directory
@@ -209,18 +230,59 @@ void mkdirFS(char ** command, int commandLength){
 //rmdir removes a directory
 void rmdirFS(char * directoryName){} // call remove directory after finding current path // recursive :) 
 
-void cd(char * path){ //changiing working path, needs to parse for .., .
-    // start by tokenizing the path 
-    // if ()
+void cd(char * path){ //changiing working path, needs to parse for .., 
 
 }
 //prints working directory
 void pwd(){
-    printf("%s\n","wokringPath");
+    printf("%s\n",global_workingPath);
 }
 
-//more lists a file a screen at a time
-void more(){} //not sure how to approach this one
+// //more lists a file a screen at a time
+// int more(char ** command, int length, char * dest, int mode){ // two cases one 
+//     if (dest != NULL){
+//        int status = cat(command, length, dest, mode);
+//        return status;
+//     }
+
+//     char * buf = malloc(sizeof(char)*1);
+//     file_handle * outFile = NULL;
+//     if (dest != NULL){
+//         char * outputPath = convertToAbsPath(dest);
+//         outFile = f_open(outputPath,mode);
+//         free(outputPath);
+//     }
+//     if (length == 1){ // just cat, read from stdin
+//         int status = 1;
+//         printf("need more :)");
+//     }
+//     // starting at 1 to cut out cat
+//     printf("size of command: %d",numFiles);
+//     for (int i = 1; i < numFiles; i++){
+//         file_handle * curFile = f_open(command[i],READ_ONLY);
+//         if (curFile == NULL){
+//             printf("\033[0;31mError:\001\e[0m\002 No File or Directory\n");
+//             continue;
+//         }
+//         int status = f_read(buf, sizeof(char),1,curFile);
+//         // printf("%c",*buf);
+//         while (status != 0){
+//             // printf("dest is null %d\n", dest == NULL);
+//             // printf("%c",*buf);
+//             if (dest == NULL){
+//                 printf("%c",*buf);
+//             }
+//             else{
+//                 f_write(buf,sizeof(char),1,outFile);    
+//             }
+//             status = f_read(buf, sizeof(char),1,curFile);
+//         }
+//         // fclose(curFile);
+//     }
+//     free(buf); 
+//     return EXIT_SUCCESS;    
+
+// } //not sure how to approach this one
 
 //rm deletes a file
 void rm(char * path){} // removes specific file
