@@ -9,7 +9,7 @@ int cat(char ** files, int numFiles, char * dest,int mode);
 int ls(char ** command, int length, char * dest, int mode);
 int cd(char ** command, int length);
 void mkdirFS(char ** command, int commandLength);
-void chmod(char ** commands,int length);
+void f_chmod(char ** commands,int length);
 int more(char ** command, int length, char * dest, int mode);
 void pwd();
 void rm(char ** command, int commandLength);
@@ -18,4 +18,5 @@ void fg(int pid);
 int myKill(int pid, int isSIGKILL);
 void printJobs(List * processes);
 void testing(char * infile);
+char * convertToAbsPath(char * relativePath, int * isMalloced);
 #endif

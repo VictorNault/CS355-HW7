@@ -111,7 +111,7 @@ int main(){
 
         }
     }
-
+    
     userNum = atoi(uid);
     // printf("uid: %s,%d ,userNUM\n",uid, userNum);
     if(userNum > 255){
@@ -185,6 +185,7 @@ int main(){
     int compare = regcomp(&nregex,"^![0-9]+$",REG_EXTENDED); //match numbers after ! \b is word boundry
     int dashCompare = regcomp(&dashNRegex,"^!-[0-9]+$",REG_EXTENDED);
     strcpy(global_workingPath, "/");
+    FILE * redir_stdout = fopen("./stdoutredir","w+");   
     while(TRUE){
         int addToHistory = TRUE;
         // printf("\033[1;32m%d@\001\e[0m\002", userNum); // trying different prompt string
@@ -209,6 +210,8 @@ int main(){
             free(history);
             regfree(&nregex);
             regfree(&dashNRegex);
+            fclose(redir_stdout);
+            remove("./stdoutredir");
             f_terminate();
             exit(EXIT_SUCCESS);
         } 
@@ -222,6 +225,8 @@ int main(){
         int numCmds; // number of semicolon seperated commands
         char ** commandList = tokenize2(commandToParse, &numCmds);
         for (int i = 0; i < numCmds; i++){
+        freopen("./stdoutredir","w+",redir_stdout);//CLEARING stdout
+
         destFile = NULL;
         char * trimmedCommand = trimStr(commandList[i]);
         free(commandList[i]);
@@ -358,7 +363,7 @@ int main(){
         }
            if (strcmp(currentCommand[0],"chmod") == 0){
             if (commandLength != 1){
-                chmod(currentCommand, commandLength);
+                f_chmod(currentCommand, commandLength);
             }
             else{
                 printf("\033[0;31mError:\001\e[0m\002 Pass at correct parameters (chmod mode file)\n");
@@ -454,6 +459,8 @@ int main(){
             free(history);
             regfree(&nregex);
             regfree(&dashNRegex);
+            fclose(redir_stdout);
+            remove("./stdoutredir");
             f_terminate();
             exit(0);
         }
@@ -736,6 +743,10 @@ int main(){
                 // printf("arg %d: %s \n", i,args[i]);
             }
             args[commandLength] = NULL;
+            // setting stdout to our redirstdout
+            if (w_mode == WRITE_ONLY || w_mode == APPEND){
+                dup2(fileno(redir_stdout),STDOUT_FILENO);  
+            }
             int success = execvp(currentCommand[0],args);
             
             perror("\033[0;31mError\001\e[0m\002");
@@ -760,6 +771,21 @@ int main(){
             }
             
             // add_history(commandList[i]);
+        }
+        if (w_mode == WRITE_ONLY || w_mode == APPEND){
+        //copy stdoutredir to filesystem
+        char buf[1];
+        int isMalloced;
+        char * absPath = convertToAbsPath(destFile, &isMalloced);
+        file_handle * outFile = f_open(absPath,w_mode);
+        if (isMalloced) free(absPath);
+        fseek(redir_stdout,0,SEEK_SET);
+        int status = fread(buf,sizeof(char),1,redir_stdout);
+        while(status != 0 && outFile){
+            f_write(buf,sizeof(char),1,outFile);
+            status = fread(buf,sizeof(char),1,redir_stdout);
+        }
+        if (outFile) f_close(outFile);
         }
 
         for (int i = 0; i < commandLength; i++){

@@ -300,7 +300,7 @@ int ls(char ** command, int length, char * dest, int mode){
 //chmod changes the permissions mode of a file. Support absolute mode and symbolic mode.
 // will need to parse symbols and convert to octal.
 //u = owner, g = group, o = others, a = all, =, +, -, r,w,x. e.g u=rwx gives owner read, write, execute
-void  chmod(char ** commands,int length){ //will probably fwrite to specific bitsin the file header
+void  f_chmod(char ** commands,int length){ //will probably fwrite to specific bitsin the file header
     if (length != 3){
         printf("\033[0;31mError:\001\e[0m\002 Enter valid parameters\n");
         return;

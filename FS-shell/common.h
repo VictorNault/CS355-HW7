@@ -60,7 +60,9 @@
 #include <termios.h>       
 #include <dirent.h>
 #include <math.h>
-#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "List.h"
 #include "List_Extras.h"
 #include "node.h"
