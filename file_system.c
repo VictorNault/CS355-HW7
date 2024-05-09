@@ -161,8 +161,8 @@ dir_entry *update_protection(int dir_FAT_idx, char *name, u_int8_t protection[])
     for(int i = 0; i < 15; i++){
         if(strcmp(temp1->data_in_first_block[i].name,name) == 0){
             if(protection){
-                for(int i = 0; i < 9; i++){ //copying the array
-                    temp1->data_in_first_block[i].protection[i] = protection[i];
+                for(int o = 0; o < 9; o++){ //copying the array
+                    temp1->data_in_first_block[i].protection[o] = protection[o];
                 }
                 fseek(disk,find_offset(dir_FAT_idx),SEEK_SET);
                 fwrite(temp1,sizeof(dir_header),1,disk);
@@ -747,6 +747,7 @@ file_handle *f_open(const char *pathname, const int mode){
         else if(status == EXIT_FAILURE && i == token_length - 1){
             printf("File does not exist, making file...\n");
             f_mkfile(pathname,"e");
+            find_file_from_directory(file_e,fat_e,tokens[i],&parent_FAT_idx);
         }
 
         //update fat_entry
