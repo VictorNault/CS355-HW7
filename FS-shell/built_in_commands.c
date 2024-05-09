@@ -90,20 +90,23 @@ void testing(char * path){
 
 
 
-    // file_handle * myfile = f_open("beemovie",READ_ONLY);
+    file_handle * myfile = f_open("beemovie",READ_ONLY);
     // char * buf = malloc(sizeof(char) * 1024);
     // f_read(buf,512,1,myfile );
     //     printf("buf: %s\n", buf);
 
     // f_read(buf,512,1,myfile );
     // printf("buf: %s\n", buf);
-    char * output = malloc(1000);
-    char * path2 = malloc(1000);
-    strcpy(path2, "/dir1/dir2/.");
-    absPathFromDir(path2,output);
-    printf("%s",output);
-    free(output);
-    free(path2);
+    // char * output = malloc(1000);
+    // char * path2 = malloc(1000);
+    // strcpy(path2, "/dir1/dir2/.");
+    // absPathFromDir(path2,output);
+    // printf("%s",output);
+    // free(output);
+    // free(path2);
+    file_header * stat_buf = malloc(sizeof(file_header));
+    f_stat(myfile, stat_buf);
+    free(stat_buf);
 }
 // cat displays the content of one or more files to the output.
 
@@ -164,7 +167,17 @@ int cat(char ** command,int numFiles,char * dest, int mode){
 int ls(char ** command, int length, char * dest, int mode){
     int l_flag = 0;
     int skip_idx = -1;
-    file_handle * outFile = NULL;
+    file_handle * outFile;
+    if (dest == NULL) {
+        outFile = NULL;
+    }
+    else{
+        int isMalloced;
+        char * absPath = convertToAbsPath(dest, &isMalloced);
+        outFile = f_open(absPath,mode);
+        if (isMalloced == TRUE) free(absPath);
+
+    }
     //checking for -l flag
     for(int i = 0; i < length;i++){
         if (strcmp(command[i],"-l") == 0){
@@ -177,20 +190,37 @@ int ls(char ** command, int length, char * dest, int mode){
     directory->r_index=2;
     if (!directory) {  // failed to open file
         // todo: handle case where it's not a directory but valid file (just print fstat :) )
-        // int status = fstat(global_workingPath);
-        // if (status == -1){
-
-        // }
-        // else{
-
-        // }
+        file_handle * file = f_open(global_workingPath, READ_ONLY);
+        if (file == NULL){
+            return 0;
+        }
+        else{
+            if (l_flag == 1){
+            file_header * stat_buf = malloc(sizeof(file_header));
+            f_stat(file, stat_buf);
+            char str[1028];
+            sprintf(str,"permissions %d %d %d %s\n",stat_buf->is_directory,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+            if (outFile == NULL) printf("%s",str);
+            else f_write(str,strlen(str)+1,1,outFile);
+            }
+            else{  
+                char str[1028];
+                sprintf(str,"%s\n", file->name);
+                if (outFile == NULL) printf("%s",str);
+                else f_write(str,strlen(str)+1,1,outFile);
+            }
+        }
+        f_close(file);
+        if (outFile != NULL) f_close(outFile);
         return 0;
     }
     dir_entry * curdir = f_readdir(directory);
     while(curdir){
             if (l_flag != 1){
-                if (outFile == NULL) printf("%s\n", curdir->name); //stdout
-                else f_write(curdir->name,strlen(curdir->name)+1,1,outFile);
+                char str[1028];
+                sprintf(str,"%s\n", curdir->name);
+                if (outFile == NULL) printf("%s",str); //stdout
+                else f_write(str,strlen(str)+1,1,outFile);
             }
             else{                    
                 char * permStr = arrayToPermStr(curdir->protection, curdir->is_directory);
@@ -205,9 +235,9 @@ int ls(char ** command, int length, char * dest, int mode){
             curdir = f_readdir(directory);
     }
     f_closedir(directory);
+    if (outFile != NULL) f_close(outFile);
     return 0;
     }
-
 
     for (int i = 1; i < length;i++ )
     {
@@ -216,21 +246,50 @@ int ls(char ** command, int length, char * dest, int mode){
         char * absPath = convertToAbsPath(command[i], &isMalloced);
         dir_handle * directory = f_opendir(absPath);
         if (!directory) {  // failed to open file
-            printf("\033[0;31mError:\001\e[0m\002 File not found\n");
-            return -1;
+            file_handle * file = f_open(absPath, READ_ONLY);
+            if (file == NULL){
+                continue;
+            }
+            else{
+                if (l_flag == 1){
+                file_header * stat_buf = malloc(sizeof(file_header));
+                f_stat(file, stat_buf);
+                char str[1028];
+                sprintf(str,"permissions %d %d %d %s\n",stat_buf->is_directory,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+                if (outFile == NULL) printf("%s",str);
+                else f_write(str,strlen(str)+1,1,outFile);
+                }
+                else{  
+                    char str[1028];
+                    sprintf(str,"%s\n", file->name);
+                    if (outFile == NULL) printf("%s",str);
+                    else f_write(str,strlen(str)+1,1,outFile);
+                }
+            }
+            f_close(file);
+            if (outFile != NULL) f_close(outFile);
+            continue;
         }
         dir_entry * curdir = f_readdir(directory);
         while(curdir){
             if (l_flag != 1){
-            printf("%s\n", curdir->name);
+            char str[1028];
+            sprintf(str ,"%s\n", curdir->name);
+            if (outFile == NULL) printf("%s",str); //stdout
+            else f_write(str,strlen(str)+1,1,outFile);
             }
             else{
-                printf("%d protection %d %d %s\n",curdir->is_directory,curdir->uid,curdir->first_FAT_idx,curdir->name);
+                char str[1028];
+                sprintf(str, "%d protection %d %d %s\n",curdir->is_directory,curdir->uid,curdir->first_FAT_idx,curdir->name);
+                if (outFile == NULL) printf("%s",str);
+                else f_write(str,strlen(str)+1,1,outFile);
             }
             curdir = f_readdir(directory);
         }
         f_closedir(directory);
     }
+    if (outFile != NULL) f_close(outFile);
+
     //f_closedir(directory);
 }
 
@@ -277,7 +336,7 @@ void rmdirFS(char * directoryName){} // call remove directory after finding curr
 int cd(char ** command, int length){ //changiing working path, needs to parse for .., 
     if (length != 2){
         printf("\033[0;31mError:\001\e[0m\002 Invalid Parameters\n");
-        return; 
+        return EXIT_FAILURE; 
     }
     int isMalloced;
     char * absPath = convertToAbsPath(command[1], &isMalloced);
@@ -365,7 +424,14 @@ int more(char ** command, int length, char * dest, int mode){ // two cases one
 // } //not sure how to approach this one
 
 //rm deletes a file
-void rm(char * path){} // removes specific file
+void rm(char ** command, int commandLength){
+    for (int i = 1; i < commandLength; i++){
+        int isMalloced;
+        char * absPath = convertToAbsPath(command[i],&isMalloced);
+        f_remove(command[i]);
+        if (isMalloced == TRUE) free(absPath);
+    }
+} // removes specific file
 
 
 //might be job id actually

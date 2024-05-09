@@ -240,7 +240,7 @@ int main(){
         char * directionCopy = malloc( sizeof(char) * (strlen(commandList[i])+1)); // making a copy because of how readline handles history
         // beacuse strtok replaces with null byte
         strcpy(directionCopy, commandCopy);    
-            char ** commandWRedirect = splitStringFromDelims(commandCopy, &cmdWRedirectLen,&background,"><");
+        char ** commandWRedirect = splitStringFromDelims(commandCopy, &cmdWRedirectLen,&background,"><");
         if((cmdWRedirectLen) == 2){
             int numgt = countChar(directionCopy,'>');
             int numlt = countChar(directionCopy,'<');
@@ -255,13 +255,20 @@ int main(){
             }
             else{
                 printf("error plese pass >, >>, or <"); // fix mem leak ehre
+                for (int i = 0; i < cmdWRedirectLen; i++){
+                    free(commandWRedirect[i]);
+                }  
+                free(commandWRedirect);
+                cmdWRedirectLen = 0;
+                free(directionCopy);
+                free(commandCopy);
                 continue;
             }
-            free(directionCopy);
             destFile = trimStr(commandWRedirect[1]);
             printf("cmdWR1: %s, cmdWR2: %s\n", commandWRedirect[0],destFile);
         }
-
+        free(directionCopy);
+        free(commandCopy);
 
         char ** currentCommand = splitStringFromDelims(commandWRedirect[0], &commandLength, &background, delims);
         for (int i = 0; i < cmdWRedirectLen; i++){
@@ -299,6 +306,38 @@ int main(){
                 printf("\033[0;31mError:\001\e[0m\002 Pass at least one file name\n");
 
             }
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
+            continue;
+        }
+
+        if (strcmp(currentCommand[0],"rm") == 0){
+            if (commandLength > 1){
+                rm(currentCommand, commandLength);
+            }
+            else{
+                printf("\033[0;31mError:\001\e[0m\002 Pass at least one file name\n");
+
+            }
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
+            continue;
+        }
+
+        if (strcmp(currentCommand[0],"pwd") == 0){
+            pwd();
             for (int i = 0; i < commandLength; i++){
                 free(currentCommand[i]);
             }  
