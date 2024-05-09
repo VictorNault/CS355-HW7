@@ -104,7 +104,8 @@ void testing(char * path){
     strcpy(path2, "/dir1/dir2/.");
     absPathFromDir(path2,output);
     printf("%s",output);
-
+    free(output);
+    free(path2);
 }
 // cat displays the content of one or more files to the output.
 
@@ -153,7 +154,6 @@ int cat(char ** command,int numFiles,char * dest, int mode){
     free(buf); 
     return EXIT_SUCCESS;    
 }
-
 
 //Will make a call to opendir, which returns a dir entry, which has list of file entry
 int ls(char ** command, int length, char * dest, int mode){
