@@ -1437,7 +1437,42 @@ int f_rmdir(const char *pathname){
 }
 
 int main(){
-    f_init(101,"fresh_disk");
+    f_init(101,"fake_disk");
+    
+    // testing f_remove
+    //fseek(disk, 0, SEEK_SET);
+    //struct superblock my_superblock;
+    //fread(&my_superblock, SUPERBLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(0), SEEK_SET);
+    dir_header root_before;
+    fread(&root_before, BLOCK_SIZE, 1, disk);
+    int dummy = 5;
+    f_remove("/beemovie");
+    // check free list
+    fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+    free_datablock first_fdb;
+    fread(&first_fdb, BLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(first_fdb.next), SEEK_SET);
+    free_datablock second_fdb;
+    fread(&second_fdb, BLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(second_fdb.next), SEEK_SET);
+    free_datablock third_fdb;
+    fread(&third_fdb, BLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(third_fdb.next), SEEK_SET);
+    free_datablock fourth_fdb;
+    fread(&fourth_fdb, BLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(fourth_fdb.next), SEEK_SET);
+    free_datablock fifth_fdb;
+    fread(&fifth_fdb, BLOCK_SIZE, 1, disk);
+    
+    fseek(disk, find_offset(0), SEEK_SET);
+    dir_header root_after;
+    fread(&root_after, BLOCK_SIZE, 1, disk);
+    dummy = 6;
+    //fseek(disk, find_offset(0), SEEK_SET);
+    
+    
+    //fread(file_e,sizeof(*file_e),1,disk);
 
     //***testing f_write
     // file_handle *temp = f_open("beemovie",READ_WRITE);
@@ -1456,20 +1491,20 @@ int main(){
     // f_close(temp);
 
     //***testin f_mkdir
-    f_mkdir("/next","e");
-    f_mkdir("/jeig/hi","e"); //shouldn't work because jeig/ is not in root
-    f_mkdir("/eigob;","e"); //shouldn't work because contains a bad character ';'
-    f_mkdir("/next","e");
-    f_mkdir("/hi","e");
-    f_mkdir("/hiiii","e");
-    f_mkdir("/hi/wow","e");
-    file_handle *test = f_open("/hiiii/",1);
-    file_handle *test1 = f_open("/hi/wow/",1);
-    dir_header temp1;
-    fseek(disk,find_offset(3),SEEK_SET);
-    fread(&temp1, BLOCK_SIZE, 1, disk);
-    f_close(test);
-    f_close(test1);
+    //f_mkdir("/next","e");
+    //f_mkdir("/jeig/hi","e"); //shouldn't work because jeig/ is not in root
+    //f_mkdir("/eigob;","e"); //shouldn't work because contains a bad character ';'
+    //f_mkdir("/next","e");
+    //f_mkdir("/hi","e");
+    //f_mkdir("/hiiii","e");
+    //f_mkdir("/hi/wow","e");
+    //file_handle *test = f_open("/hiiii/",1);
+    //file_handle *test1 = f_open("/hi/wow/",1);
+    //dir_header temp1;
+    //fseek(disk,find_offset(3),SEEK_SET);
+    //fread(&temp1, BLOCK_SIZE, 1, disk);
+    //f_close(test);
+    //f_close(test1);
 
     //***test f_mkfile
     // f_mkdir("/next","e");
