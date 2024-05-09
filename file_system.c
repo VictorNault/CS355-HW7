@@ -1435,6 +1435,67 @@ int f_closedir(dir_handle *stream){
 int f_rmdir(const char *pathname){
     //delete a directory, removes entire contents and the contents of all subdirectorys from the filesystem
 }
+                                                                                                                       
+int minimore(const char * pathname) {
+    //char absolute_path[1000];
+    //absPathFromDir(relative_path, absolute_path);
+
+    //tokenizing the pathname 
+    int token_length = 0;
+    char** tokens = tokenize(pathname,&token_length,"/");
+    char *name = malloc(sizeof(char)*9);
+    strcpy(name,tokens[token_length-1]);
+    if ((strlen(name) + 1) > NAME_BYTES) {
+        printf("Name too long\n");
+        return EXIT_FAILURE;
+    }
+    //seeking the root directory fat entry
+    fat_entry *fat_e = &fat_table[0];
+    file_header *file_e = malloc(sizeof(file_header));
+
+    //seeking the data block for root
+    fseek(disk,find_offset(0),SEEK_SET);
+    fread(file_e,sizeof(*file_e),1,disk);
+
+    int status = 0;
+    //finding file from directory repeatedly
+    for(int i = 0; i < token_length; i++){
+        status = find_file_from_directory(file_e,fat_e,tokens[i],NULL);
+
+        //error checking
+        if(status == EXIT_FAILURE){
+            for(int i = 0; i < token_length; i++){
+                free(tokens[i]);
+            }
+            free(tokens);
+            free(file_e);
+            printf("FILE NOT FOUND\n");
+            return EXIT_FAILURE;
+        }
+    }//file_e should be the file
+    
+
+    int blocks_in_file = ((file_e->size) / BLOCK_SIZE) + 1;
+    char curr_data[BLOCK_SIZE + 1];
+    fat_entry curr_fat_entry = fat_table[file_e->first_FAT_idx];
+    strncpy(curr_data, file_e->data_in_first_block, FILE_AFTER_HEADER_BYTES + 1);
+    for (int i = 0; i < blocks_in_file; i++) {
+        printf("%s\n", curr_data);
+        if ( !((i + 1) == blocks_in_file) ) {
+            fseek(disk, find_offset(curr_fat_entry.next), SEEK_SET);
+            fread(curr_data, BLOCK_SIZE, 1, disk);
+            curr_data[BLOCK_SIZE] = '\0';
+            curr_fat_entry = fat_table[curr_fat_entry.next];
+        }
+    }
+
+    free(tokens);
+    free(file_e);
+    free(name);
+    return 0;
+}
+
+
 
 int main(){
     f_init(101,"fake_disk");
@@ -1447,6 +1508,10 @@ int main(){
     dir_header root_before;
     fread(&root_before, BLOCK_SIZE, 1, disk);
     int dummy = 5;
+    
+    minimore("/beemovie");
+    
+    /*
     f_remove("/beemovie");
     // check free list
     fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
@@ -1468,6 +1533,7 @@ int main(){
     fseek(disk, find_offset(0), SEEK_SET);
     dir_header root_after;
     fread(&root_after, BLOCK_SIZE, 1, disk);
+    */
     dummy = 6;
     //fseek(disk, find_offset(0), SEEK_SET);
     
