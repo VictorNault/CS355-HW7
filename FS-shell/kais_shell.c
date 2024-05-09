@@ -113,7 +113,7 @@ int main(){
     }
 
     userNum = atoi(uid);
-    printf("uid: %s,%d ,userNUM\n",uid, userNum);
+    // printf("uid: %s,%d ,userNUM\n",uid, userNum);
     if(userNum > 255){
         printf("%d invalid\n", userNum);
         exit(EXIT_SUCCESS);
@@ -254,7 +254,7 @@ int main(){
                 w_mode = INDIRECT;
             }
             else{
-                printf("error plese pass >, >>, or <"); // fix mem leak ehre
+                // printf("error plese pass >, >>, or <"); // fix mem leak ehre
                 for (int i = 0; i < cmdWRedirectLen; i++){
                     free(commandWRedirect[i]);
                 }  
@@ -265,10 +265,18 @@ int main(){
                 continue;
             }
             destFile = trimStr(commandWRedirect[1]);
-            printf("cmdWR1: %s, cmdWR2: %s\n", commandWRedirect[0],destFile);
+            // printf("cmdWR1: %s, cmdWR2: %s\n", commandWRedirect[0],destFile);
         }
         free(directionCopy);
         free(commandCopy);
+        if (cmdWRedirectLen == 0){
+        for (int i = 0; i < cmdWRedirectLen; i++){
+            free(commandWRedirect[i]);
+        }  
+        free(commandWRedirect);
+        cmdWRedirectLen = 0;
+        continue;
+        }
 
         char ** currentCommand = splitStringFromDelims(commandWRedirect[0], &commandLength, &background, delims);
         for (int i = 0; i < cmdWRedirectLen; i++){
@@ -512,7 +520,7 @@ int main(){
         }
              
         if (strcmp(currentCommand[0],"cat") == 0){
-            printf("background = %d\n", background);
+            // printf("background = %d\n", background);
             cat(currentCommand,commandLength,destFile, w_mode);
 
             // pid_t pid = fork();

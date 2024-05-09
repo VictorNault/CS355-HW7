@@ -120,23 +120,27 @@ int cat(char ** command,int numFiles,char * dest, int mode){
         free(outputPath);
     }
     if (numFiles == 1){ // just cat, read from stdin
-        int status = 1;
-        while (status != 0)
-        {
-           status = fread(buf,sizeof(char),1,stdin);
+        *buf = getchar();
+
+        while (*buf != EOF)
+        {   
+
             if (dest == NULL){
-                printf("%c",*buf);
+                printf("%c\n",*buf);
             }
             else{
                 f_write(buf,sizeof(char),1,outFile);    
             }
+            *buf = getchar();
         } 
+        clearerr(stdin);        
         free(buf);
         f_close(outFile);
+        // fclose(stdin);
         return 0;
     }
     // starting at 1 to cut out cat
-    printf("size of command: %d",numFiles);
+    // printf("size of command: %d",numFiles);
     for (int i = 1; i < numFiles; i++){
         file_handle * curFile = f_open(command[i],READ_ONLY);
         if (curFile == NULL){
@@ -325,7 +329,7 @@ void mkdirFS(char ** command, int commandLength){
     for (int i = 1; i < commandLength; i++){
         int isMalloced;
         char * absPath = convertToAbsPath(command[i],&isMalloced);
-        f_mkdir(command[i],0);
+        f_mkdir(absPath,0);
         if (isMalloced == TRUE) free(absPath);
     }
 }// call make directory after finding the current path
@@ -428,7 +432,7 @@ void rm(char ** command, int commandLength){
     for (int i = 1; i < commandLength; i++){
         int isMalloced;
         char * absPath = convertToAbsPath(command[i],&isMalloced);
-        f_remove(command[i]);
+        f_remove(absPath);
         if (isMalloced == TRUE) free(absPath);
     }
 } // removes specific file
