@@ -61,9 +61,7 @@ char * convertToAbsPath(char * relativePath, int * isMalloced){
 //confirm path actually exisits first consider passing dir_handle instead of path name.
 int absPathFromDir(char * path, char * output){
     dir_handle * cur_dir = f_opendir(path);
-    // dir_entry * cur_entry = f_readdir(cur_dir);
     if (cur_dir == NULL){
-
         return EXIT_FAILURE;
     }
     cur_dir->r_index = 1;
@@ -123,9 +121,15 @@ int cat(char ** command,int numFiles,char * dest, int mode){
         while (status != 0)
         {
            status = fread(buf,sizeof(char),1,stdin);
-           printf("%c",*buf);
+            if (dest == NULL){
+                printf("%c",*buf);
+            }
+            else{
+                f_write(buf,sizeof(char),1,outFile);    
+            }
         } 
         free(buf);
+        f_close(outFile);
         return 0;
     }
     // starting at 1 to cut out cat
@@ -149,8 +153,9 @@ int cat(char ** command,int numFiles,char * dest, int mode){
             }
             status = f_read(buf, sizeof(char),1,curFile);
         }
-        // fclose(curFile);
+        f_close(curFile);
     }
+    f_close(outFile);
     free(buf); 
     return EXIT_SUCCESS;    
 }
@@ -167,7 +172,6 @@ int ls(char ** command, int length, char * dest, int mode){
             skip_idx = i;
         }
     }
-
     if (length == 1 || (length == 2 && l_flag == 1)){ // just ls
     dir_handle * directory = f_opendir(global_workingPath);
     directory->r_index=2;
@@ -190,16 +194,17 @@ int ls(char ** command, int length, char * dest, int mode){
             }
             else{                    
                 char * permStr = arrayToPermStr(curdir->protection, curdir->is_directory);
-                if (outFile == NULL) printf("%s %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->name);
+                if (outFile == NULL) printf("%s %d %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size, curdir->name);
                 else{
                     char str[256];
-                    sprintf(str,"%s %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->name);
+                    sprintf(str,"%s %d %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
                     f_write(str,sizeof(str),1,outFile);
                 }
                 free(permStr);
             }
             curdir = f_readdir(directory);
     }
+    f_closedir(directory);
     return 0;
     }
 
@@ -224,6 +229,7 @@ int ls(char ** command, int length, char * dest, int mode){
             }
             curdir = f_readdir(directory);
         }
+        f_closedir(directory);
     }
     //f_closedir(directory);
 }
@@ -231,20 +237,26 @@ int ls(char ** command, int length, char * dest, int mode){
 //chmod changes the permissions mode of a file. Support absolute mode and symbolic mode.
 // will need to parse symbols and convert to octal.
 //u = owner, g = group, o = others, a = all, =, +, -, r,w,x. e.g u=rwx gives owner read, write, execute
-void  chmod(file_handle * file, char * permissions){ //will probably fwrite to specific bitsin the file header
+void  chmod(char ** commands,int length){ //will probably fwrite to specific bitsin the file header
+    if (length != 3){
+        printf("\033[0;31mError:\001\e[0m\002 Enter valid parameters\n");
+        return;
+    }
     int isMalloced;
-    char * absPath = convertToAbsPath(file,&isMalloced);
+    char * absPath = convertToAbsPath(commands[2],&isMalloced);
     file_handle * file_to_update = f_open(absPath, READ_ONLY);
     if (file_to_update == NULL){
         printf("\033[0;31mError:\001\e[0m\002 Invalid file or directory\n");
     }
-    u_int8_t * newperms = chmodParsing(permissions, file->is_dir, NULL); //file->permssions);
+    u_int8_t curperms[11] = {0};
+    u_int8_t * newperms = chmodParsing(commands[1],file_to_update->is_dir, curperms); //file->permssions);
     if (newperms == NULL){
+        printf("\033[0;31mError:\001\e[0m\002 Invalid Permissions\n");
         return;
     }
-    update_protection(file->parent_FAT_idx, file->name,newperms);
+    update_protection(file_to_update->parent_FAT_idx, file_to_update->name,newperms+1);
     free(absPath);
-    f_close(file);
+    f_close(file_to_update);
     // need something to write changes to disk
 
 };
@@ -292,7 +304,20 @@ int cd(char ** command, int length){ //changiing working path, needs to parse fo
 void pwd(){
     printf("%s\n",global_workingPath);
 }
-
+int more(char ** command, int length, char * dest, int mode){ // two cases one 
+    if (dest != NULL){
+       int status = cat(command, length, dest, mode);
+       return status;
+    }
+    int isMalloced;
+    for (int i = 1; i < length; i++){
+        char * absPath = convertToAbsPath(command[i], &isMalloced);
+        f_minimore(absPath);
+        if (isMalloced == TRUE){
+            free(absPath);
+        }
+    }
+}
 // //more lists a file a screen at a time
 // int more(char ** command, int length, char * dest, int mode){ // two cases one 
 //     if (dest != NULL){

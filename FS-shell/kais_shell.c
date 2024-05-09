@@ -137,9 +137,10 @@ int main(){
         disk = fsptr; // mounting disk 
     }
     else{
-        disk = makenewdisk(); // mounting new DISK
+        makenewdisk();
+        disk = global_write_fp; // mounting new DISK
     }
-    fclose(fsptr);
+    // fclose(fsptr);
     closedir(directory);
 
     char * destFile; // for > >> <;
@@ -230,24 +231,33 @@ int main(){
         char * commandCopy = malloc( sizeof(char) * (strlen(commandList[i])+1)); // making a copy because of how readline handles history
         // beacuse strtok replaces with null byte
         strcpy(commandCopy, commandList[i]);
+        // printf("%s\n",commandCopy);
         int commandLength; //split string from delim
         int background;
 
         // for now redirection is only supported with 1 file which is after the only >, >>, or < 
         int cmdWRedirectLen = 0;
-        char ** commandWRedirect = splitStringFromDelims(commandCopy, &cmdWRedirectLen,&background,"><");
+        char * directionCopy = malloc( sizeof(char) * (strlen(commandList[i])+1)); // making a copy because of how readline handles history
+        // beacuse strtok replaces with null byte
+        strcpy(directionCopy, commandCopy);    
+            char ** commandWRedirect = splitStringFromDelims(commandCopy, &cmdWRedirectLen,&background,"><");
         if((cmdWRedirectLen) == 2){
-            int numgt = countChar(commandCopy,'>');
-            int numlt = countChar(commandCopy,'<');
+            int numgt = countChar(directionCopy,'>');
+            int numlt = countChar(directionCopy,'<');
             if (numgt == 2){
                 w_mode = APPEND;
             }
             else if (numgt == 1){
                 w_mode = WRITE_ONLY;
             }
-            if (numlt == 1){
+            else if (numlt == 1){
                 w_mode = INDIRECT;
             }
+            else{
+                printf("error plese pass >, >>, or <"); // fix mem leak ehre
+                continue;
+            }
+            free(directionCopy);
             destFile = trimStr(commandWRedirect[1]);
             printf("cmdWR1: %s, cmdWR2: %s\n", commandWRedirect[0],destFile);
         }
@@ -299,6 +309,44 @@ int main(){
             }
             continue;
         }
+           if (strcmp(currentCommand[0],"chmod") == 0){
+            if (commandLength != 1){
+                chmod(currentCommand, commandLength);
+            }
+            else{
+                printf("\033[0;31mError:\001\e[0m\002 Pass at correct parameters (chmod mode file)\n");
+
+            }
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
+            continue;
+        }
+        if (strcmp(currentCommand[0],"more") == 0){
+            if (commandLength != 1){
+            status = more(currentCommand, commandLength, destFile,w_mode);
+            }
+            else{
+                printf("\033[0;31mError:\001\e[0m\002 need more\n");
+
+            }
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
+            continue;
+        }
+
+
 
 
         if (strcmp(currentCommand[0],"cd") == 0){

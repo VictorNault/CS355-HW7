@@ -77,6 +77,7 @@ extern pthread_mutex_t mutex; //defining the mutex
 extern pid_t shellPid;
 extern struct termios shellTermios;
 extern char global_workingPath[1028]; // current path 
+extern FILE * global_write_fp;
 
 
 #endif
