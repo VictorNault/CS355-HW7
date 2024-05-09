@@ -183,11 +183,11 @@ int main(){
 
     int compare = regcomp(&nregex,"^![0-9]+$",REG_EXTENDED); //match numbers after ! \b is word boundry
     int dashCompare = regcomp(&dashNRegex,"^!-[0-9]+$",REG_EXTENDED);
-    global_workingPath = "/";
+    strcpy(global_workingPath, "/");
     while(TRUE){
         int addToHistory = TRUE;
         // printf("\033[1;32m%d@\001\e[0m\002", userNum); // trying different prompt string
-        char input[1000];
+        char input[2000];
         sprintf(input, "\033[1;32m%d@VHKB:%s \001\e[0m\002",userNum, global_workingPath);
         char * commandToParse = readline(input);
 
@@ -234,7 +234,7 @@ int main(){
         int background;
 
         // for now redirection is only supported with 1 file which is after the only >, >>, or < 
-        int cmdWRedirectLen;
+        int cmdWRedirectLen = 0;
         char ** commandWRedirect = splitStringFromDelims(commandCopy, &cmdWRedirectLen,&background,"><");
         if((cmdWRedirectLen) == 2){
             int numgt = countChar(commandCopy,'>');
@@ -287,6 +287,26 @@ int main(){
             }
             else{
                 printf("\033[0;31mError:\001\e[0m\002 Pass at least one file name\n");
+
+            }
+            for (int i = 0; i < commandLength; i++){
+                free(currentCommand[i]);
+            }  
+            free(currentCommand);
+            free(commandList[i]);
+            if (destFile != NULL){
+                free(destFile);
+            }
+            continue;
+        }
+
+
+        if (strcmp(currentCommand[0],"cd") == 0){
+            if (commandLength > 1){
+                cd(currentCommand, commandLength);
+            }
+            else{
+                printf("\033[0;31mError:\001\e[0m\002 Pass at new directory\n");
 
             }
             for (int i = 0; i < commandLength; i++){
@@ -655,7 +675,7 @@ int main(){
         }
         free(commandList); 
         free(commandToParse);
-        if (destFile != NULL) free(destFile);
+        // if (destFile != NULL) free(destFile);
  
     }
 }

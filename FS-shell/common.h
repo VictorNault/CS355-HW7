@@ -76,7 +76,7 @@ extern List * processes;
 extern pthread_mutex_t mutex; //defining the mutex
 extern pid_t shellPid;
 extern struct termios shellTermios;
-extern char * global_workingPath; // current path 
+extern char global_workingPath[1028]; // current path 
 
 
 #endif

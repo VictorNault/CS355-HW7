@@ -40,37 +40,50 @@
 //     free(stringToSplitCopy);
 //     return tokenList;
 // }
-char * global_workingPath;
+char global_workingPath[1028];
 
 // char * checkPerms(char * userID, file_handle){
 // }
  // probably not right need to add / somewhere 
-char * convertToAbsPath(char * relativePath){
+char * convertToAbsPath(char * relativePath, int * isMalloced){
     if (relativePath[0] == '/'){ //recieved absolute path 
+        isMalloced = FALSE;
         return relativePath;
     }
 
     // char ** currentDirToks = tokenize(currentPath,&cur_dir_len,"/");
-    char * abs_path = malloc(sizeof(char) + strlen(relativePath) + strlen(global_workingPath) + 1);
+    char * abs_path = malloc(sizeof(char) + strlen(relativePath) + strlen(global_workingPath) + 1 + 1000);
     memcpy(abs_path,global_workingPath,strlen(global_workingPath));
     memcpy(abs_path+strlen(global_workingPath),relativePath, strlen(relativePath)+1);
+    *isMalloced = TRUE;
     return abs_path;
 }
 //confirm path actually exisits first consider passing dir_handle instead of path name.
-// void absPathFromDir(char * path, char * output){
-//     dir_handle * cur_dir = f_opendir(path);
-//     if (cur_dir->name == "root"){
-//         strcat(output,"/");
-//         return;
-//     } 
-//     else{
-//     strcat(path, "/..");
-//     absPathFromDir(path, output);
-//     strcat(output,cur_dir->name);   
-//     f_closedir(cur_dir);
-//     return;
-// }
-// }
+int absPathFromDir(char * path, char * output){
+    dir_handle * cur_dir = f_opendir(path);
+    // dir_entry * cur_entry = f_readdir(cur_dir);
+    if (cur_dir == NULL){
+
+        return EXIT_FAILURE;
+    }
+    cur_dir->r_index = 1;
+
+    if (strcmp(cur_dir->name,"root") == 0){
+        strcat(output,"/");
+        return 0;
+    } 
+    else{
+    strcat(path, "/..");
+    // strcat(path, cur_entry->name);
+    int status = absPathFromDir(path, output);
+    if (status == 0){
+    strcat(output,cur_dir->name);   
+    strcat(output,"/");
+    }
+    f_closedir(cur_dir);
+    return EXIT_SUCCESS;
+    }
+}
 // open dir test 
 void testing(char * path){
     // fseek(disk,17 * BLOCK_SIZE,SEEK_CUR);
@@ -79,14 +92,19 @@ void testing(char * path){
 
 
 
-    file_handle * myfile = f_open("beemovie",READ_ONLY);
-    char * buf = malloc(sizeof(char) * 1024);
-    f_read(buf,512,1,myfile );
-        printf("buf: %s\n", buf);
+    // file_handle * myfile = f_open("beemovie",READ_ONLY);
+    // char * buf = malloc(sizeof(char) * 1024);
+    // f_read(buf,512,1,myfile );
+    //     printf("buf: %s\n", buf);
 
-    f_read(buf,512,1,myfile );
-    printf("buf: %s\n", buf);
-    
+    // f_read(buf,512,1,myfile );
+    // printf("buf: %s\n", buf);
+    char * output = malloc(1000);
+    char * path2 = malloc(1000);
+    strcpy(path2, "/dir1/dir2/.");
+    absPathFromDir(path2,output);
+    printf("%s",output);
+
 }
 // cat displays the content of one or more files to the output.
 
@@ -94,7 +112,8 @@ int cat(char ** command,int numFiles,char * dest, int mode){
     char * buf = malloc(sizeof(char)*1);
     file_handle * outFile = NULL;
     if (dest != NULL){
-        char * outputPath = convertToAbsPath(dest);
+        int isMalloced;
+        char * outputPath = convertToAbsPath(dest, &isMalloced);
         outFile = f_open(outputPath,mode);
         free(outputPath);
     }
@@ -188,7 +207,8 @@ int ls(char ** command, int length, char * dest, int mode){
     for (int i = 1; i < length;i++ )
     {
         if (i == skip_idx) continue;
-        char * absPath = convertToAbsPath(command[i]);
+        int isMalloced;
+        char * absPath = convertToAbsPath(command[i], &isMalloced);
         dir_handle * directory = f_opendir(absPath);
         if (!directory) {  // failed to open file
             printf("\033[0;31mError:\001\e[0m\002 File not found\n");
@@ -212,8 +232,19 @@ int ls(char ** command, int length, char * dest, int mode){
 // will need to parse symbols and convert to octal.
 //u = owner, g = group, o = others, a = all, =, +, -, r,w,x. e.g u=rwx gives owner read, write, execute
 void  chmod(file_handle * file, char * permissions){ //will probably fwrite to specific bitsin the file header
-    chmodParsing(permissions, file->is_dir, NULL); //file->permssions);
-
+    int isMalloced;
+    char * absPath = convertToAbsPath(file,&isMalloced);
+    file_handle * file_to_update = f_open(absPath, READ_ONLY);
+    if (file_to_update == NULL){
+        printf("\033[0;31mError:\001\e[0m\002 Invalid file or directory\n");
+    }
+    u_int8_t * newperms = chmodParsing(permissions, file->is_dir, NULL); //file->permssions);
+    if (newperms == NULL){
+        return;
+    }
+    update_protection(file->parent_FAT_idx, file->name,newperms);
+    free(absPath);
+    f_close(file);
     // need something to write changes to disk
 
 };
@@ -221,17 +252,41 @@ void  chmod(file_handle * file, char * permissions){ //will probably fwrite to s
 //mkdir creates a directory
 void mkdirFS(char ** command, int commandLength){
     for (int i = 1; i < commandLength; i++){
-        char * absPath = convertToAbsPath(command[i]);
+        int isMalloced;
+        char * absPath = convertToAbsPath(command[i],&isMalloced);
         f_mkdir(command[i],0);
-        free(absPath);
+        if (isMalloced == TRUE) free(absPath);
     }
 }// call make directory after finding the current path
 
 //rmdir removes a directory
 void rmdirFS(char * directoryName){} // call remove directory after finding current path // recursive :) 
 
-void cd(char * path){ //changiing working path, needs to parse for .., 
+int cd(char ** command, int length){ //changiing working path, needs to parse for .., 
+    if (length != 2){
+        printf("\033[0;31mError:\001\e[0m\002 Invalid Parameters\n");
+        return; 
+    }
+    int isMalloced;
+    char * absPath = convertToAbsPath(command[1], &isMalloced);
+    if (isMalloced == FALSE){
+        char * temp = absPath;
+        char absPath[1028];
+        strcpy(absPath,temp);
+    }
+    char pathcopy[1028];
+    strcpy(pathcopy, global_workingPath);
+    strcpy(global_workingPath, "");
+    int status = absPathFromDir(absPath, global_workingPath);
 
+    if (isMalloced == TRUE){
+        free(absPath);
+    }
+    if (status == EXIT_FAILURE){ // wrtie the old working path back and error
+        strcpy(global_workingPath,pathcopy);
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
 //prints working directory
 void pwd(){
