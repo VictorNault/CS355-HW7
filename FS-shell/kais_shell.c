@@ -187,6 +187,7 @@ int main(){
     int dashCompare = regcomp(&dashNRegex,"^!-[0-9]+$",REG_EXTENDED);
     strcpy(global_workingPath, "/");
     FILE * redir_stdout = fopen("./stdoutredir","w+");   
+    FILE * indir_stdin = fopen("./stdinindir","w+");
     while(TRUE){
         w_mode = 0;
         int addToHistory = TRUE;
@@ -728,7 +729,30 @@ int main(){
 
         }
         
-
+        if (w_mode == INDIRECT){ // read from file in FS if does not exists throw error and clean
+            int isMalloced;
+            char * absPath = convertToAbsPath(destFile, &isMalloced);
+            file_handle * inputFile = f_open(absPath,READ_ONLY); 
+            if (!inputFile){
+                perror("\033[0;31mError: Indirect File not found\001\e[0m\002");
+                
+                for (int i = 0; i < commandLength; i++){
+                    free(currentCommand[i]);
+                }
+                free(currentCommand);
+                free(commandList[i]);        
+                continue;
+            }
+            char buf[1];
+            int status=  f_read(buf,1,1,inputFile);
+            while (status != 0){
+                printf("%c\n",*buf);
+                fwrite(buf,1,1,indir_stdin);
+                status=  f_read(buf,1,1,inputFile);
+       
+                }
+            f_close(inputFile);
+        }
         pid_t pid = fork();
 
         if (pid == 0){
@@ -748,6 +772,9 @@ int main(){
             // setting stdout to our redirstdout
             if (w_mode == WRITE_ONLY || w_mode == APPEND){
                 dup2(fileno(redir_stdout),STDOUT_FILENO);  
+            }
+            if(w_mode == INDIRECT){
+                dup2(fileno(indir_stdin),STDIN_FILENO);
             }
             int success = execvp(currentCommand[0],args);
             
