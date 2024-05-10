@@ -137,6 +137,7 @@ int main(){
         disk = fsptr; // mounting disk 
     }
     else{
+        printf("Making fresh disk\n");
         makenewdisk();
         disk = global_write_fp; // mounting new DISK
     }
@@ -144,7 +145,7 @@ int main(){
     closedir(directory);
 
     char * destFile; // for > >> <;
-    int w_mode; //write mode
+    int w_mode = 0; //write mode
     int status;
     shellPid = getpid();
         
@@ -187,6 +188,7 @@ int main(){
     strcpy(global_workingPath, "/");
     FILE * redir_stdout = fopen("./stdoutredir","w+");   
     while(TRUE){
+        w_mode = 0;
         int addToHistory = TRUE;
         // printf("\033[1;32m%d@\001\e[0m\002", userNum); // trying different prompt string
         char input[2000];
@@ -787,6 +789,7 @@ int main(){
         }
         if (outFile) f_close(outFile);
         }
+        w_mode = 0;
 
         for (int i = 0; i < commandLength; i++){
             free(currentCommand[i]);

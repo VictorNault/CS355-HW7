@@ -144,6 +144,7 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
     }
     do{
         while(total_size < BLOCK_SIZE){
+            // printf("%s, %d\n",cur_file->name, total_size);
             total_size += sizeof(dir_entry);
             fread(cur_file,sizeof(dir_entry),1,disk);
             if(strcmp(cur_file->name, name) == 0){
@@ -164,10 +165,9 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
             return EXIT_FAILURE;
         }
         fseek(disk,find_offset(cur_fat->next),SEEK_SET);
-        fread(cur_file,sizeof(dir_entry),1,disk);
         cur_idx = cur_fat->next;
         cur_fat = find_next_fat(cur_fat);
-        total_size = 0;
+        total_size = -32; //-sizeof dir_entry
     }while(cur_idx != -1);
     free(cur_file);
     // //printf("File %s not found in directory %s\n",name,dir->name);
@@ -644,27 +644,28 @@ int f_mkfile(const char *pathname, char *mode) {
     int non_header_bytes_in_parent = parent_dir->size - FILE_HEADER_BYTES;
     int files_in_parent = non_header_bytes_in_parent / DIR_ENTRY_BYTES;
     //printf("Non_header_bytes: %d\nfiles_in_parent: %d\n",non_header_bytes_in_parent,files_in_parent);
-    if(files_in_parent == 15){
+    if(files_in_parent >= 15){
         //parent dir is full, needs to check if the next block exists or allocate new block
         int cur_idx = parent_dir->first_FAT_idx;
-        fat_entry cur_fat = fat_table[cur_idx];
-        while(cur_fat.next != -1){ //getting the last fat
-            cur_idx = cur_fat.next;
-            cur_fat = fat_table[cur_idx];
+        fat_entry* cur_fat = &fat_table[cur_idx];
+        while(cur_fat->next != -1){ //getting the last fat
+            cur_idx = cur_fat->next;
+            cur_fat = &fat_table[cur_idx];
         }
         dir_entry *dir_entries = malloc(BLOCK_SIZE); //getting the last dir entries block
         fseek(disk,find_offset(cur_idx),SEEK_SET);
         fread(dir_entries,BLOCK_SIZE,1,disk);
+        //printf("Size: %d\n",parent_dir->size);
         if(((parent_dir->size)/32)%16 != 0){
             //if there is an empty spot in the last block, write to the last spot
-            dir_entries[15] = *new_dir_entry;
+            dir_entries[((parent_dir->size)/32)%16] = *new_dir_entry;
             parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
             fseek(disk,find_offset(cur_idx),SEEK_SET);
             fwrite(dir_entries,BLOCK_SIZE,1,disk);
             free(dir_entries);
         }else{
             //if everything is full, create a new block and put the new dir entry in the first spot
-            int idx = add_block_to_file(&cur_fat);
+            int idx = add_block_to_file(cur_fat);
             fseek(disk,find_offset(idx),SEEK_SET);
             fread(dir_entries,BLOCK_SIZE,1,disk);
             dir_entries[0] = *new_dir_entry;
@@ -673,6 +674,8 @@ int f_mkfile(const char *pathname, char *mode) {
             fwrite(dir_entries,BLOCK_SIZE,1,disk);
             free(dir_entries);
         }
+        fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
+        fwrite(parent_dir, BLOCK_SIZE, 1, disk);
     }else{
         parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
         parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
@@ -873,7 +876,7 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     int copy_offset = 0;
     int multi_block_read = 0;
     ////printf("data_block_offset: %d\ncur_block: %d\nbytes_to_read: %d\n",data_block_offset,cur_block,bytes_to_read);
-    while(total_size >= 0){
+    while(total_size >= 0 && (stream->cur_rindex + FILE_HEADER_BYTES < stream->size)){
         //setting how many bytes I'm reading in this current block
         bytes_to_read = BLOCK_SIZE - ((stream->cur_rindex + FILE_HEADER_BYTES) % BLOCK_SIZE);
         if(total_size < bytes_to_read){
@@ -915,12 +918,16 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
         cur_fat_entry = fat_table[cur_block];
         free(buffer);
     }
-
+    //bandaid?
+    if ((stream->cur_rindex + FILE_HEADER_BYTES >= stream->size)){
+        return  copy_offset;
+    }
     assert(total_size == 0);
     assert(copy_offset == size * nmemb);
 
     return copy_offset;
 }
+
 
 
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
@@ -1040,7 +1047,7 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
         }
         cur_fat_entry = &fat_table[cur_block];
     }
-
+    
     assert(total_size == 0);
     assert(copy_offset == size * nmemb);
     return copy_offset;
@@ -1562,6 +1569,7 @@ dir_entry * f_readdir(dir_handle *directory){
     }
     else{ // data in any other block
         int page_num = (sizeof(dir_entry) * (directory->r_index + 1)) / BLOCK_SIZE; // page we need to seek to/load in; +1 for header in first block *assumes dir_entry and header are the same size
+        printf("block: %d", page_num);
         int cur_fat = directory->first_FAT_idx;
         for (int i = 0; i < page_num; i++){
             cur_fat = fat_table[cur_fat].next;

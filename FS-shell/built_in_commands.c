@@ -56,6 +56,7 @@ char * convertToAbsPath(char * relativePath, int * isMalloced){
     memcpy(abs_path,global_workingPath,strlen(global_workingPath));
     memcpy(abs_path+strlen(global_workingPath),relativePath, strlen(relativePath)+1);
     *isMalloced = TRUE;
+    printf("absPath: %s \n", abs_path);
     return abs_path;
 }
 //confirm path actually exisits first consider passing dir_handle instead of path name.
@@ -111,7 +112,8 @@ void testing(char * path){
 // cat displays the content of one or more files to the output.
 
 int cat(char ** command,int numFiles,char * dest, int mode){
-    char * buf = malloc(sizeof(char)*1);
+    clearerr(stdin);        
+    char buf[1];
     file_handle * outFile = NULL;
     if (dest != NULL){
         int isMalloced;
@@ -120,21 +122,20 @@ int cat(char ** command,int numFiles,char * dest, int mode){
         free(outputPath);
     }
     if (numFiles == 1){ // just cat, read from stdin
-        *buf = getchar();
+        int status = fread(buf, 1,1,stdin);
 
-        while (*buf != EOF)
+        while (status != 0)
         {   
 
             if (dest == NULL){
                 printf("%c\n",*buf);
             }
             else{
+                // printf("%c\n",*buf);
                 f_write(buf,sizeof(char),1,outFile);    
             }
-            *buf = getchar();
+             status = fread(buf, 1,1,stdin);
         } 
-        clearerr(stdin);        
-        free(buf);
         f_close(outFile);
         // fclose(stdin);
         return 0;
@@ -142,7 +143,10 @@ int cat(char ** command,int numFiles,char * dest, int mode){
     // starting at 1 to cut out cat
     // printf("size of command: %d",numFiles);
     for (int i = 1; i < numFiles; i++){
-        file_handle * curFile = f_open(command[i],READ_ONLY);
+        int isMalloced;
+        char * fpath = convertToAbsPath(command[i], &isMalloced);
+        file_handle * curFile = f_open(fpath,READ_ONLY);
+        if (isMalloced) free(fpath);
         if (curFile == NULL){
             printf("\033[0;31mError:\001\e[0m\002 No File or Directory\n");
             continue;
@@ -160,10 +164,9 @@ int cat(char ** command,int numFiles,char * dest, int mode){
             }
             status = f_read(buf, sizeof(char),1,curFile);
         }
-        f_close(curFile);
+        if (curFile != NULL) f_close(curFile);
     }
-    f_close(outFile);
-    free(buf); 
+    if (outFile != NULL) f_close(outFile);
     return EXIT_SUCCESS;    
 }
 
@@ -218,6 +221,7 @@ int ls(char ** command, int length, char * dest, int mode){
         if (outFile != NULL) f_close(outFile);
         return 0;
     }
+    directory->r_index=2;
     dir_entry * curdir = f_readdir(directory);
     while(curdir){
             if (l_flag != 1){
