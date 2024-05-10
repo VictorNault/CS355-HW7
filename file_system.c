@@ -676,11 +676,20 @@ int f_mkfile(const char *pathname, char *mode) {
         }
         fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
         fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+        file_handle dum;
+        dum.parent_FAT_idx = parent_dir->data_in_first_block[1].first_FAT_idx;
+        dum.first_FAT_idx = parent_dir->first_FAT_idx;
+        set_file_size(&dum,parent_dir->size);
     }else{
         parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
         parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
         fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
         fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+        file_handle dum;
+        dum.parent_FAT_idx = parent_dir->data_in_first_block[1].first_FAT_idx;
+        dum.first_FAT_idx = parent_dir->first_FAT_idx;
+        set_file_size(&dum,parent_dir->size);
+        
     }
 
 

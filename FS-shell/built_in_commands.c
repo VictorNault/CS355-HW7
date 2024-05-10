@@ -131,7 +131,7 @@ int cat(char ** command,int numFiles,char * dest, int mode){
                 printf("%c\n",*buf);
             }
             else{
-                // printf("%c\n",*buf);
+                printf("%c\n",*buf);
                 f_write(buf,sizeof(char),1,outFile);    
             }
              status = fread(buf, 1,1,stdin);
