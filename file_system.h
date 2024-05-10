@@ -69,6 +69,16 @@ typedef struct dir_handle { //24 bytes total
     u_int16_t parent_FAT_idx; //first FAT entry of parent dir
 }dir_handle;
 
+//stat struct for f_stat
+typedef struct file_stat{
+    char name[NAME_BYTES];
+    u_int8_t is_dir;
+    u_int8_t protection[9]; //9 protection bytes
+    u_int16_t first_FAT_idx; //first FAT entry = first block of file
+    u_int8_t uid; //owner's user ID
+    size_t size; //size of file in bytes
+
+}file_stat;
 
 void f_init();
 file_handle *f_open(const char *pathname, const int mode);
@@ -77,7 +87,7 @@ size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream);
 int f_close(file_handle *stream);
 int f_seek(file_handle *stream, long offset, int position);
 void f_rewind(file_handle *stream);
-int f_stat(file_handle *stream, file_header *stat_buffer);
+int f_stat(file_handle *stream, file_stat *stat_buffer);
 int f_remove(const char *pathname);
 dir_handle *f_opendir(const char *name);
 dir_entry *f_readdir(dir_handle *directory);
@@ -86,7 +96,6 @@ int f_mkdir(const char *pathname, char *mode);
 int f_rmdir(const char *pathname);
 int f_minimore(const char * pathname);
 dir_entry *update_protection(int dir_FAT_idx, char *name, u_int8_t protection[]);
-
 void f_terminate();
 
 extern int f_error;

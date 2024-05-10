@@ -226,6 +226,7 @@ dir_entry *update_protection(int dir_FAT_idx, char *name, u_int8_t protection[])
         cur_fat_idx = cur_dir_fat.next;
     }
     free(dir_entries);
+    free(to_return);
     return NULL;
 }
 
@@ -676,19 +677,23 @@ int f_mkfile(const char *pathname, char *mode) {
         }
         fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
         fwrite(parent_dir, BLOCK_SIZE, 1, disk);
+        if (parent_dir->first_FAT_idx != 0){
         file_handle dum;
         dum.parent_FAT_idx = parent_dir->data_in_first_block[1].first_FAT_idx;
         dum.first_FAT_idx = parent_dir->first_FAT_idx;
         set_file_size(&dum,parent_dir->size);
+        }
     }else{
         parent_dir->data_in_first_block[files_in_parent] = *new_dir_entry;
         parent_dir->size = parent_dir->size + DIR_ENTRY_BYTES;
         fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
         fwrite(parent_dir, BLOCK_SIZE, 1, disk);
-        file_handle dum;
+        if (parent_dir->first_FAT_idx != 0){
+        file_handle dum; // grand parent 
         dum.parent_FAT_idx = parent_dir->data_in_first_block[1].first_FAT_idx;
         dum.first_FAT_idx = parent_dir->first_FAT_idx;
         set_file_size(&dum,parent_dir->size);
+        }
         
     }
 
@@ -799,9 +804,10 @@ file_handle *f_open(const char *pathname, const int mode){
     }else if(mode == WRITE_ONLY){
         to_return->cur_rindex = -1;
     }else if(mode == APPEND){
-        to_return->cur_windex = file_e->size;
+        to_return->cur_windex = file_e->size - 32;   
+        to_return->cur_windex = to_return->cur_windex - 32;
     }
-
+    
     //putting the file handle into the open_files array
     int status1 = 0;
     for(int i = 0; i < NUM_OPEN_FILES; i++){
@@ -833,13 +839,13 @@ file_handle *f_open(const char *pathname, const int mode){
 size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //read the specified number of bytes from a file handle at the current position. 
     //returns the number of bytes read, or an error.
-    if (stream == NULL){
+    if (stream == NULL || stream->is_dir){
         //printf("Invalid Stream, exiting f_read...\n");
         f_error = E_NOT_FILE;
         return 0;
     }
     //check if we have permission to read
-    if(stream->cur_rindex == -1 || stream->is_dir){
+    if(stream->cur_rindex == -1){
         //printf("No read permission, exiting f_read...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
@@ -937,19 +943,17 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     return copy_offset;
 }
 
-
-
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //write some bytes to a file handle at the current position. 
     //Returns the number of bytes written, or an error.
-    if (stream == NULL){
+    if (stream == NULL || stream->is_dir){
         //printf("Invalid Stream, exiting f_write...\n");
         f_error = E_NOT_FILE;
         return 0;
     }
     //check if we have permission to write
 
-    if(stream->cur_windex == -1 || stream->is_dir){
+    if(stream->cur_windex == -1){
         //printf("No write permission, exiting f_write...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
@@ -1106,7 +1110,7 @@ int f_seek(file_handle *stream, long offset, int position){
         }
         return EXIT_SUCCESS;
     } else {
-        return -1;
+        return EXIT_FAILURE;
     }
     //move pointers to a specified position in a file
 }
@@ -1121,9 +1125,25 @@ void f_rewind(file_handle *stream){
     //move pointers to the start of the file
 }
 
-int f_stat(file_handle *stream, file_header *stat_buffer){
-    fseek(disk, find_offset(stream->first_FAT_idx), SEEK_SET);
-    fread(stat_buffer, sizeof(struct file_header), 1, disk);
+int f_stat(file_handle *stream, file_stat *stat_buffer){
+    stat_buffer->first_FAT_idx = stream->first_FAT_idx;
+    stat_buffer->is_dir = stream->is_dir;
+    stat_buffer->size = stream->size;
+    strcpy(stat_buffer->name, stream->name);
+    dir_entry *temp = update_protection(stream->parent_FAT_idx,stream->name,NULL);
+    if(!temp){
+        printf("File not found, exiting f_stat...\n");
+        f_error = E_FILE_NOT_FOUND;
+        free(temp);
+        return EXIT_FAILURE;
+    }else{
+        stat_buffer->uid = temp->uid;
+        for(int j = 0; j < 9; j++){ //copying the array
+            stat_buffer->protection[j] = temp->protection[j];
+        }
+    }
+    free(temp);
+    return EXIT_SUCCESS;
 }
 
 void aux_insert_into_freelist(int fat_index_of_to_insert) {
@@ -1138,6 +1158,7 @@ void aux_insert_into_freelist(int fat_index_of_to_insert) {
     }
 
 }
+
 int f_remove(const char *pathname){
     //delete a file from disk
     //returns EXIT_SUCCESS if successfully deleted or error
@@ -1323,6 +1344,12 @@ int f_remove(const char *pathname){
     fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
     fwrite(parent_dir, BLOCK_SIZE, 1, disk);
 
+    if(parent_dir->first_FAT_idx != 0){ // not root directory {
+    file_handle dum; // grand parent 
+    dum.parent_FAT_idx = parent_dir->data_in_first_block[1].first_FAT_idx;
+    dum.first_FAT_idx = parent_dir->first_FAT_idx;
+    set_file_size(&dum,parent_dir->size);
+    }
     // finally fix fat table and add deleted file blocks to free list
 
     fat_entry empty_fat_entry;
@@ -1405,6 +1432,7 @@ int f_remove(const char *pathname){
     free(name);
     return EXIT_SUCCESS;
 }
+
 int auxmygetchar ( void ) 
 {
   int ch;
@@ -1419,6 +1447,7 @@ int auxmygetchar ( void )
   
   return ch;
 }
+
 int f_minimore(const char * pathname) {
     //char absolute_path[1000];
     //absPathFromDir(relative_path, absolute_path);
@@ -1478,7 +1507,6 @@ int f_minimore(const char * pathname) {
     free(name);
     return 0;
 }
-
 
 dir_handle *f_opendir(const char *pathname){
     file_header *file_e = malloc(sizeof(file_header));
@@ -1604,8 +1632,6 @@ int f_closedir(dir_handle *stream){
     free(stream->cur_entry); // malloced dir_entry ptr
     free(stream);
 }
-
-
 
 int f_rmdir(const char *pathname){
     //delete a directory, removes entire contents and the contents of all subdirectorys from the filesystem
