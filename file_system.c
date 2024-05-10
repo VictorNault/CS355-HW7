@@ -834,13 +834,13 @@ file_handle *f_open(const char *pathname, const int mode){
 size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //read the specified number of bytes from a file handle at the current position. 
     //returns the number of bytes read, or an error.
-    if (stream == NULL){
+    if (stream == NULL || stream->is_dir){
         //printf("Invalid Stream, exiting f_read...\n");
         f_error = E_NOT_FILE;
         return 0;
     }
     //check if we have permission to read
-    if(stream->cur_rindex == -1 || stream->is_dir){
+    if(stream->cur_rindex == -1){
         //printf("No read permission, exiting f_read...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
@@ -941,14 +941,14 @@ size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream){
 size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream){
     //write some bytes to a file handle at the current position. 
     //Returns the number of bytes written, or an error.
-    if (stream == NULL){
+    if (stream == NULL || stream->is_dir){
         //printf("Invalid Stream, exiting f_write...\n");
         f_error = E_NOT_FILE;
         return 0;
     }
     //check if we have permission to write
 
-    if(stream->cur_windex == -1 || stream->is_dir){
+    if(stream->cur_windex == -1){
         //printf("No write permission, exiting f_write...\n");
         f_error = E_PERMISSION_DENIED;
         return 0;
@@ -1105,7 +1105,7 @@ int f_seek(file_handle *stream, long offset, int position){
         }
         return EXIT_SUCCESS;
     } else {
-        return -1;
+        return EXIT_FAILURE;
     }
     //move pointers to a specified position in a file
 }
