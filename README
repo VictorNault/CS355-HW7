@@ -1,0 +1,33 @@
+Names: Kai Britt, Ben Jiang, Hilary Lutz, Victor Nault 
+
+To compile: 
+
+How to run: 
+
+Known Bugs/Limitations:
+
+Features/EC Summary:
+
+    Disk format:
+
+    Our disk is formatted in the following way: superblock -> fat table -> data blocks
+    
+    The superblock takes up one block, and contains:
+     the size of each block (512 bytes),
+     the block offset of the fat table (always 1), 
+     the block offset of the data region (always 17),
+     the fat index of the head of the free block list (can change, but on a freshly formatted disk is 1),
+     and padding so that the struct is block sized
+     
+     
+    
+    
+    Backend:
+    
+    
+    Frontend:
+    
+
+
+File Directory: 
+
