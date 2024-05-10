@@ -52,9 +52,25 @@ Features/EC Summary:
         And there will be a dir_entry struct for every file/directory within the directory.
         
       A non-header block of a (regular) file is just 512 arbitrary bytes. We read them in as chars for convienience of reading text data, and because char size is one byte.
-      A non-header block of a directory is an array of 16 dir_entry structs.
+      A non-header block of a directory is an array of 16 dir_entry structs. 
       
-     
+    A new, freshly formatted disk will contain the following:
+     The superblock, with fields:
+      - size = 512
+      - table_offset = 1
+      - data_offset = 17
+      - free_block = 1
+      - padding
+     The fat table, with "next" of index 0 being -1, and next at all other indexes being -2
+     And the root directory, in the first data block, with the following fields:
+      - name = "root"
+      - is_directory = 1
+      - first_FAT_idx = 0
+      - size = 96
+      - padding
+      - data_in_first_block[0] = {
+                                 - name = "root"
+
      
     
     
