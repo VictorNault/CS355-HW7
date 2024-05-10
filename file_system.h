@@ -69,6 +69,14 @@ typedef struct dir_handle { //24 bytes total
     u_int16_t parent_FAT_idx; //first FAT entry of parent dir
 }dir_handle;
 
+//stat struct for f_stat
+typedef struct file_stat{
+    char name[NAME_BYTES];
+    u_int8_t is_dir;
+    u_int8_t protection[9]; //9 protection bytes
+    u_int16_t first_FAT_idx; //first FAT entry = first block of file
+    u_int8_t uid; //owner's user ID
+}file_stat;
 
 void f_init();
 file_handle *f_open(const char *pathname, const int mode);
