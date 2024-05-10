@@ -19,6 +19,42 @@ Features/EC Summary:
      the fat index of the head of the free block list (can change, but on a freshly formatted disk is 1),
      and padding so that the struct is block sized
      
+    The fat table takes up 16 blocks, and is made up of structs that contain a single field, the next fat index of the file it's part of
+     The terminating block of files have "-1" as the value at their index in the fat table
+     Unused/free blocks have "-2" as the value at their index in the fat table
+    
+    Data blocks are of four different types: header block of a (regular) file, header block of a directory, non-header block of a (regular) file, and non-header block of a directory.
+    
+     The header blocks of files and directory are very similar, and share the following fields:
+      the name of the file/directory (9 bytes, so 8 bytes for the name and 1 byte for the null terminator)
+      is_directory (0 if the file is not a directory, 1 otherwise)
+      first_FAT_idx (index of the first block of the file/directory in the fat table)
+      size (size of the file/directory IN BYTES, an empty (regular) file will have a size of 32 (32 header bytes), an empty directory will have a size of 96 (32 header bytes, 32 bytes to contain information about . (itself), and 32 bytes to contain information about .. (parent directory) )
+      padding (16 bytes to align directory size with block size, also in file headers so that a block can be read into either and struct and still be correct
+      
+     The only difference in the header blocks are how the data is interpreted in C.
+     
+      A regular file's "data_in_first_block" field is a char array (480 elements). It can contain any arbitrary data, char was chosen for convienience of reading text data, and because char size is one byte.
+      A directory's "data_in_first_block" field is an array of dir_entry structs (15 elements).
+      
+        The dir_entry struct contains the following fields:
+         the name of the file/directory (same as header),
+         the size of the file/directory (same as header),
+         the uid of the owner of the file/directory (made upon creation, root directory automatically belongs to superuser, uid 101),
+         the protection bytes of the file/directory (similar format to Linux protection bits...
+          - First three bytes are read, write, and execute for file owner,
+          - Next three bytes are read, write, and execute for file owner's group (but we don't implement groups, so these bytes are in practice irrelevant),
+          - Next three bytes are read, write, and execute for the world (everyone),
+          - Final two bytes are padding and unused
+          - Each byte is 0 if the permission is not set, and 1 if the permission is set
+         )
+         and if the file is a directory or not (same as header)
+        And there will be a dir_entry struct for every file/directory within the directory.
+        
+      A non-header block of a (regular) file is just 512 arbitrary bytes. We read them in as chars for convienience of reading text data, and because char size is one byte.
+      A non-header block of a directory is an array of 16 dir_entry structs.
+      
+     
      
     
     
