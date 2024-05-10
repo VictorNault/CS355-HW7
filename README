@@ -35,7 +35,7 @@ Features/EC Summary:
      The only difference in the header blocks are how the data is interpreted in C.
      
       A regular file's "data_in_first_block" field is a char array (480 elements). It can contain any arbitrary data, char was chosen for convienience of reading text data, and because char size is one byte.
-      A directory's "data_in_first_block" field is an array of dir_entry structs (15 elements).
+      A directory's "data_in_first_block" field is an array of dir_entry structs (15 elements). The first element of this array will always be the dir_entry struct corresponding to the directory itself. The second element of this array will always be the dir_entry struct corresponding to the directory's parent directory.
       
         The dir_entry struct contains the following fields:
          the name of the file/directory (same as header),
@@ -70,6 +70,21 @@ Features/EC Summary:
       - padding
       - data_in_first_block[0] = {
                                  - name = "root"
+                                 - first_FAT_idx = 0
+                                 - size = 96
+                                 - uid = 101
+                                 - protection = 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+                                 - is_directory = 1
+                                 }
+       - data_in_first_block[1] = {
+                                 - name = "INVALID!"
+                                 - first_FAT_idx = 65534
+                                 - size = 4294967295
+                                 - uid = 101
+                                 - protection = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                                 - is_directory = 0
+                                 }
+      The other elements of data_in_first_block in root are empty.
 
      
     
