@@ -1714,7 +1714,8 @@ int f_rmdir(const char *pathname){
     int to_delete_file_index = -1;
     int to_delete_block_ar_index = -1;
     dir_entry curr_dir_entry;
-    int ar_counter = 0;
+    // skip . and ..
+    int ar_counter = 2;
     int block_to_modify_fat_index = -1;
     fat_entry curr_fat_entry = fat_table[parent_dir->first_FAT_idx];
     dir_entry to_delete_dir_entry;
@@ -1794,10 +1795,10 @@ int f_rmdir(const char *pathname){
         }
         recursive_del_curr_dir_entry = recursive_del_curr_block_ar[recursive_del_ar_counter];
         if (recursive_del_curr_dir_entry.is_directory == 0) {
-            f_remove(strcat(strcat(pathname_copy, "/"), curr_block_ar[to_delete_block_ar_index].name));
+            f_remove(strcat(strcat(pathname_copy, "/"), recursive_del_curr_block_ar[recursive_del_ar_counter].name));
         }
         else {
-            f_rmdir(strcat(strcat(pathname_copy, "/"), curr_block_ar[to_delete_block_ar_index].name));
+            f_rmdir(strcat(strcat(pathname_copy, "/"), recursive_del_curr_block_ar[recursive_del_ar_counter].name));
         }
         --recursive_del_possible_files_left_in_block;
         ++recursive_del_ar_counter;
@@ -2004,8 +2005,8 @@ int main(){
     fread(&root_after, BLOCK_SIZE, 1, disk);
     */
     
-    /*
-    f_remove("/beemovie");
+    //f_remove("/beemovie");
+    f_rmdir("/lvl1");
     // check free list
     fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
     free_datablock first_fdb;
@@ -2026,7 +2027,6 @@ int main(){
     fseek(disk, find_offset(0), SEEK_SET);
     dir_header root_after;
     fread(&root_after, BLOCK_SIZE, 1, disk);
-    */
     dummy = 6;
     //fseek(disk, find_offset(0), SEEK_SET);
     
@@ -2049,7 +2049,7 @@ int main(){
     // free(buffer);
     // f_close(temp);
 
-    //***testin f_mkdir
+    //***testin f_mkdir {next = -1} <repeats 11 times>,
     //f_mkdir("/next","e");
     //f_mkdir("/jeig/hi","e"); //shouldn't work because jeig/ is not in root
     //f_mkdir("/eigob;","e"); //shouldn't work because contains a bad character ';'
