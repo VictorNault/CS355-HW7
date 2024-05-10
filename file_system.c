@@ -367,6 +367,7 @@ int f_mkdir(const char *pathname, char *mode) {
             free(tokens);
             free(file_e);
             //printf("FILE NOT FOUND, existing f_mkdir\n");
+            f_error = E_FILE_NOT_FOUND;
             return EXIT_FAILURE;
         }
     }//file_e should be the parent directory

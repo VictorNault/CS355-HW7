@@ -105,7 +105,7 @@ Features/EC Summary:
             f_open has two parameters: the absolute path of a file, and a mode (READONLY, WRITEONLY, READWRITE, APPEND).
             It returns a file_handle that contains specific information of the opened file and appends items to the 
             open file array. f_open contains error checking for bad pathnames and the case that the file that is to be
-            opened does not exist. It also checks the open file list to make sure the same file is not opened twice.
+            opened does not exist. It also checks the open file list to make sure the same file is not opened twice. 
 
             Errors: 
             -E_FILE_NOT_FOUND is set for bad pathname or file is not found in READONLY mode
@@ -147,7 +147,47 @@ Features/EC Summary:
             EXIT_FAILURE. 
 
         F. void f_rewind(file_handle *stream)
-            f_rewind has one parameter: 
+            f_rewind has one parameter: the stream to rewind. It sets cur_windex and cur_rindex to 0, while adhereing to the 
+            open mode. f_rewind does not return anything. 
+        
+        G. int f_stat(file_handle *stream, file_stat *stat_buffer)
+            f_stat has two parameters: the stream to retrieve stats from, and the stat buffer to update. 
+                struct file_stat{
+                    char name[NAME_BYTES];
+                    u_int8_t is_dir;
+                    u_int8_t protection[9]; //9 protection bytes
+                    u_int16_t first_FAT_idx; //first FAT entry = first block of file
+                    u_int8_t uid; //owner's user ID
+                }file_stat;
+            f_stat reads attributes of the file and updates the file_stat struct that is passed in as a parameter. 
+
+            Errors: 
+            -E_FILE_NOT_FOUND is set if file is not found 
+
+        H. dir_handle *f_opendir(const char *pathname)
+            f_opendir has one parameter: the absolute pathname of the directory to be opened. It behaves similarly to f_open
+            but without an open mode. f_opendir contains error checking for bad pathnames and the case that the file that is to be
+            opened does not exist. It also checks the open file list to make sure the same file is not opened twice. It
+            also checks if the file to be opened is a directory or not. 
+
+            Errors: 
+            -E_NOT_DIR is set if the file is not a directory
+        
+        I. int f_closedir(dir_handle *stream)
+            f_closedir has one parameter: the directory handle to close. f_closedir behaves similarly to f_close. If the file is found 
+            in open files array, f_closedir erases the file in the array and cleans up, and returns EXIT_SUCCESS. If the file is not found, 
+            f_closedir returns EXIT_FAILURE.
+
+        J. int f_mkdir(const char *pathname, char *mode)
+            f_mkdir has two parameters: the absolute pathname including the directory name, and a mode. f_mkdir checks the integrity of
+            the name to make sure no prohibited characters exist in the name, and the length of the name. It also checks if a different file
+            with the same name exists in the same directory. 
+
+            Errors:
+            -E_NO_SPACE is set if there are no free blocks in the disk
+            -E_BAD_NAME is set if the name is too long or contains prohibited characters
+            -E_FILE_NOT_FOUND is set if a file in the path is not found
+            
 
     FRONTEND:
     
