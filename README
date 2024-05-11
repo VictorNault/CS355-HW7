@@ -35,7 +35,7 @@ Features/EC Summary:
      The only difference in the header blocks are how the data is interpreted in C.
      
       A regular file's "data_in_first_block" field is a char array (480 elements). It can contain any arbitrary data, char was chosen for convienience of reading text data, and because char size is one byte.
-      A directory's "data_in_first_block" field is an array of dir_entry structs (15 elements).
+      A directory's "data_in_first_block" field is an array of dir_entry structs (15 elements). The first element of this array will always be the dir_entry struct corresponding to the directory itself. The second element of this array will always be the dir_entry struct corresponding to the directory's parent directory.
       
         The dir_entry struct contains the following fields:
          the name of the file/directory (same as header),
@@ -70,11 +70,37 @@ Features/EC Summary:
       - padding
       - data_in_first_block[0] = {
                                  - name = "root"
+                                 - first_FAT_idx = 0
+                                 - size = 96
+                                 - uid = 101
+                                 - protection = 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+                                 - is_directory = 1
+                                 }
+       - data_in_first_block[1] = {
+                                 - name = "INVALID!"
+                                 - first_FAT_idx = 65534
+                                 - size = 4294967295
+                                 - uid = 101
+                                 - protection = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                                 - is_directory = 0
+                                 }
+      The other elements of data_in_first_block in root are empty.
 
      
     
     
     BACKEND:
+    
+     All backend functions will set f_error if they cannot complete for various reasons. All f_error codes are as follows:
+      - E_FILE_NOT_FOUND 2
+      - E_OUT_OF_BOUNDS 3
+      - E_NOT_DIR 4
+      - E_NO_SPACE 5
+      - E_PERMISSION_DENIED 6
+      - E_FILE_ALREADY_OPEN 7
+      - E_NOT_FILE 8
+      - E_BAD_NAME 9
+    
     1. Structs:
         A. file_handle is created by f_open and is given to the frontend as an interface. It contains information
         of the file and the current indexes for read and write.
@@ -187,7 +213,7 @@ Features/EC Summary:
             -E_NO_SPACE is set if there are no free blocks in the disk
             -E_BAD_NAME is set if the name is too long or contains prohibited characters
             -E_FILE_NOT_FOUND is set if a file in the path is not found
-        
+            
         K. int f_mkfile(const char *pathname, char *mode)
             f_mkfile has two parameters: the absolute pathname including the file name, and a mode. f_mkfile behaves similarly to f_mkdir.
             f_mkfile checks the integrity of the name to make sure no prohibited characters exist in the name, and the length of the name. 
@@ -198,8 +224,31 @@ Features/EC Summary:
             -E_BAD_NAME is set if the name is too long or contains prohibited characters
             -E_FILE_NOT_FOUND is set if a file in the path is not found
             
+        L. int f_remove(const char *pathname)
+            f_remove's only parameter is the pathname of the non-directory file to remove.
+            If multiple files/directories with the name to remove exist in the parent directory, f_remove picks the last one it sees to remove.
+            
+            Errors:
+            -E_NOT_FILE is set if the pathname given as input indicates a directory 
+                - If there are several files in the parent directory that have the same name and at least one is a directory, this error will be thrown
+            -E_BAD_NAME is set if the name is too long or contains prohibited characters
+            -E_FILE_NOT_FOUND is set if a file in the path is not found
+            
+        M. int f_rmdir(const char *pathname)
+            f_rmdir is very similar to f_remove. It's only parameter is the pathname of the directory to remove.
+            If the directory is not empty, f_rmdir recursively removes all files and directories within the directory.
+            If multiple files/directories with the name to remove exist in the parent directory, f_rmdir picks the last one it sees to remove.
+            
+            Errors:
+            -E_NOT_DIR is set if the pathname given as input indicates a file
+                - If there are several files in the parent directory that have the same name and at least one is a non-directory file, this error will be thrown
+            -E_BAD_NAME is set if the name is too long or contains prohibited characters
+            -E_FILE_NOT_FOUND is set if a file in the path is not found
+    
+    
     FRONTEND:
     
 
 
 File Directory: 
+
