@@ -187,8 +187,17 @@ Features/EC Summary:
             -E_NO_SPACE is set if there are no free blocks in the disk
             -E_BAD_NAME is set if the name is too long or contains prohibited characters
             -E_FILE_NOT_FOUND is set if a file in the path is not found
-            
+        
+        K. int f_mkfile(const char *pathname, char *mode)
+            f_mkfile has two parameters: the absolute pathname including the file name, and a mode. f_mkfile behaves similarly to f_mkdir.
+            f_mkfile checks the integrity of the name to make sure no prohibited characters exist in the name, and the length of the name. 
+            It also checks if a different file with the same name exists in the same directory. 
 
+            Errors:
+            -E_NO_SPACE is set if there are no free blocks in the disk
+            -E_BAD_NAME is set if the name is too long or contains prohibited characters
+            -E_FILE_NOT_FOUND is set if a file in the path is not found
+            
     FRONTEND:
     
 

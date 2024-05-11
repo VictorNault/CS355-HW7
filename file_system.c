@@ -516,6 +516,7 @@ int f_mkfile(const char *pathname, char *mode) {
     //make sure to update values for ./ and ../
     if (global_superblock->free_block == NONE_FREE) {
         //printf("No free blocks, exiting f_mkdir\n");
+        f_error = E_NO_SPACE;
         return EXIT_FAILURE;
     }
     
