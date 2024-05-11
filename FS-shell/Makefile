@@ -11,6 +11,8 @@ kais_shell: Process_Props.o List.o commands.o node.o
 	make built_in_commands.o
 	make parser.o
 	make formatDISK.o
+	make -B -C ../CS355-HW7
+	mv ../CS355-HW7/file_system.o .
 	gcc -o kais_shell built_in_commands.o parser.o Process_Props.o node.o List.o List_Extras.o sighandlers.o kais_shell.o string_extras.o file_system.o formatDISK.o -ggdb -lreadline -lpthread -lm 
 	rm -rf *.gch
 clean: 

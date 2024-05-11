@@ -225,7 +225,6 @@ FILE * makenewdisk() {
     // redoing making freeblocks because it's a mess
     for (int i = FIXED_FREEBLOCK; i < TOTAL_DATABLOCKS; i++) {
         struct free_datablock next_free_db;
-        next_free_db.next = i + 1;
         if (next_free_db.next >= (TOTAL_DATABLOCKS)) {
             next_free_db.next = -1;
         }
