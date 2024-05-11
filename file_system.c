@@ -1181,7 +1181,18 @@ void aux_insert_into_freelist(int fat_index_of_to_insert) {
         fseek(disk, 0, SEEK_SET);
         fwrite(global_superblock, BLOCK_SIZE, 1, disk);
     }
-
+    else {
+        free_datablock new_free_db;
+        struct free_datablock head_of_free_list;
+        fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+        fread(&head_of_free_list, BLOCK_SIZE, 1, disk);
+        new_free_db.next = head_of_free_list.next;
+        fseek(disk, find_offset(fat_index_of_to_insert), SEEK_SET);
+        fwrite(&new_free_db, BLOCK_SIZE, 1, disk);
+        head_of_free_list.next = fat_index_of_to_insert;
+        fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+        fwrite(&head_of_free_list, BLOCK_SIZE, 1, disk);
+    }
 }
 
 int f_remove(const char *pathname){
@@ -1364,6 +1375,7 @@ int f_remove(const char *pathname){
 
     // fix parent dir header
     parent_dir->size = parent_dir->size - DIR_ENTRY_BYTES;
+    parent_dir->data_in_first_block[0].size = parent_dir->size;
     fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
     fwrite(parent_dir, BLOCK_SIZE, 1, disk);
 
@@ -1714,8 +1726,7 @@ int f_rmdir(const char *pathname){
     int to_delete_file_index = -1;
     int to_delete_block_ar_index = -1;
     dir_entry curr_dir_entry;
-    // skip . and ..
-    int ar_counter = 2;
+    int ar_counter = 0;
     int block_to_modify_fat_index = -1;
     fat_entry curr_fat_entry = fat_table[parent_dir->first_FAT_idx];
     dir_entry to_delete_dir_entry;
@@ -1774,15 +1785,17 @@ int f_rmdir(const char *pathname){
     int recursive_del_to_delete_file_index = -1;
     int recursive_del_to_delete_block_ar_index = -1;
     dir_entry recursive_del_curr_dir_entry;
-    int recursive_del_ar_counter = 0;
+    // skip . and ..
+    int recursive_del_ar_counter = 2;
     int recursive_del_block_to_modify_fat_index = -1;
     fat_entry recursive_del_curr_fat_entry = fat_table[recursive_del_parent_dir->first_FAT_idx];
     dir_entry recursive_del_to_delete_dir_entry;
     int recursive_del_curr_fat_index = recursive_del_parent_dir->first_FAT_idx;
     
-    char pathname_copy[strlen(pathname)];
-    
-    for (int i = 0; i < files_in_dir_to_delete; i++) {
+    // need space for slash and for name of next file
+    char pathname_copy[strlen(pathname) + 1 + 9];
+    // skip . and ..
+    for (int i = 2; i < files_in_dir_to_delete; i++) {
         strcpy(pathname_copy, pathname);
         if (recursive_del_possible_files_left_in_block == 0) {
             recursive_del_possible_files_left_in_block = BLOCK_SIZE / DIR_ENTRY_BYTES;
@@ -1800,6 +1813,10 @@ int f_rmdir(const char *pathname){
         else {
             f_rmdir(strcat(strcat(pathname_copy, "/"), recursive_del_curr_block_ar[recursive_del_ar_counter].name));
         }
+        fseek(disk, 0, SEEK_SET);
+        fread(global_superblock, BLOCK_SIZE, 1, disk);
+        fseek(disk, SUPERBLOCK_BYTES, SEEK_SET);
+        fread(fat_table, FATTABLE_BYTES, 1, disk);
         --recursive_del_possible_files_left_in_block;
         ++recursive_del_ar_counter;
     }
@@ -1878,6 +1895,7 @@ int f_rmdir(const char *pathname){
 
     // fix parent dir header
     parent_dir->size = parent_dir->size - DIR_ENTRY_BYTES;
+    parent_dir->data_in_first_block[0].size = parent_dir->size;
     fseek(disk, find_offset(parent_dir->first_FAT_idx), SEEK_SET);
     fwrite(parent_dir, BLOCK_SIZE, 1, disk);
 
@@ -1978,7 +1996,7 @@ int f_rmdir(const char *pathname){
 */
 
 int main(){
-    f_init(101,"f_removedirTest-DISK");
+    f_init(101,"f_rmvdirtestDISK -REAL");
     
     // testing f_remove
     //fseek(disk, 0, SEEK_SET);
@@ -1987,6 +2005,17 @@ int main(){
     fseek(disk, find_offset(0), SEEK_SET);
     dir_header root_before;
     fread(&root_before, BLOCK_SIZE, 1, disk);
+    
+    fseek(disk, find_offset(global_superblock->free_block), SEEK_SET);
+    free_datablock first_fdb_before;
+    fread(&first_fdb_before, BLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(first_fdb_before.next), SEEK_SET);
+    free_datablock second_fdb_before;
+    fread(&second_fdb_before, BLOCK_SIZE, 1, disk);
+    fseek(disk, find_offset(second_fdb_before.next), SEEK_SET);
+    free_datablock third_fdb_before;
+    fread(&third_fdb_before, BLOCK_SIZE, 1, disk);
+    
     int dummy = 5;
     
     //minimore("/beemovie");
