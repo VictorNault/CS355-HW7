@@ -229,7 +229,8 @@ Features/EC Summary:
     
         A. ls [flags]
             - Lists file is current direcotry or specified directory  
-            - -l gives extra information
+            - -l gives extra information in format: protection, uid, first_fat_idx, size, name
+            - -F indetifies directories with "/"
         B. cat [files_list]
             - if there are no files read from stdin
             - cat files from our filesystem
