@@ -546,7 +546,7 @@ int f_mkfile(const char *pathname, char *mode) {
     //tokenizing the pathname 
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
-    printf("name: %s len: %ld\n",tokens[token_length-1], strlen(tokens[token_length-1])  );
+    // printf("name: %s len: %ld\n",tokens[token_length-1], strlen(tokens[token_length-1])  );
     if ((strlen(tokens[token_length-1]) + 1) > NAME_BYTES) {
         //printf("Name too long, exiting f_mkfile...\n");
         f_error = E_BAD_NAME;
