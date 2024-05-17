@@ -174,7 +174,9 @@ int cat(char ** command,int numFiles,char * dest, int mode){
 //Will make a call to opendir, which returns a dir entry, which has list of file entry
 int ls(char ** command, int length, char * dest, int mode){
     int l_flag = 0;
-    int skip_idx = -1;
+    int dir_flag = 0;
+    int l_skip_idx = -1;
+    int f_skip_idx = -1;
     file_handle * outFile;
     if (dest == NULL) {
         outFile = NULL;
@@ -190,10 +192,15 @@ int ls(char ** command, int length, char * dest, int mode){
     for(int i = 0; i < length;i++){
         if (strcmp(command[i],"-l") == 0){
             l_flag = 1; // setting l flag
-            skip_idx = i;
+            l_skip_idx = i;
         }
+        else if (strcmp(command[i],"-F") == 0){
+            dir_flag = 1;
+            f_skip_idx = i;
+        }
+
     }
-    if (length == 1 || (length == 2 && l_flag == 1)){ // just ls
+    if (length == 1 || (length == 2 && (l_flag == 1 || dir_flag == 1))  ||  (length == 3 && (l_flag == 1 && dir_flag == 1))){ // just ls
     dir_handle * directory = f_opendir(global_workingPath);
     if (!directory) {  // failed to open file
         // todo: handle case where it's not a directory but valid file (just print fstat :) )
@@ -207,14 +214,19 @@ int ls(char ** command, int length, char * dest, int mode){
             f_stat(file, stat_buf);
             char * permStr = arrayToPermStr(stat_buf->protection, stat_buf->is_dir);
             char str[1028];
-            sprintf(str,"%s %d %d %ld %s\n",permStr,stat_buf->is_dir,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+
+            if(dir_flag == 1 && stat_buf->is_dir == 1) sprintf(str,"%s %d %d %ld %s/\n",permStr,stat_buf->is_dir,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+            else sprintf(str,"%s %d %d %ld %s\n",permStr,stat_buf->is_dir,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+
             if (outFile == NULL) printf("%s",str);
             else f_write(str,strlen(str)+1,1,outFile);
             free(permStr);
             }
             else{  
                 char str[1028];
-                sprintf(str,"%s\n", file->name);
+                if(dir_flag == 1 && file->is_dir == 1) sprintf(str,"%s/\n", file->name);
+                else sprintf(str,"%s\n", file->name);
+
                 if (outFile == NULL) printf("%s",str);
                 else f_write(str,strlen(str)+1,1,outFile);
             }
@@ -228,16 +240,21 @@ int ls(char ** command, int length, char * dest, int mode){
     while(curdir){
             if (l_flag != 1){
                 char str[1028];
-                sprintf(str,"%s\n", curdir->name);
+                if(dir_flag == 1 && curdir->is_directory == 1) sprintf(str,"%s/\n", curdir->name);
+                else sprintf(str,"%s\n", curdir->name);
+
                 if (outFile == NULL) printf("%s",str); //stdout
                 else f_write(str,strlen(str)+1,1,outFile);
             }
-            else{                    
+            else{      
+                char str[1028];
                 char * permStr = arrayToPermStr(curdir->protection, curdir->is_directory);
-                if (outFile == NULL) printf("%s %d %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size, curdir->name);
+                if (dir_flag == 1 && curdir->is_directory == 1) sprintf(str,"%s %d %d %d %s/\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
+                else sprintf(str,"%s %d %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
+
+                if (outFile == NULL) printf("%s",str);
                 else{
-                    char str[256];
-                    sprintf(str,"%s %d %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
+                    char str[1028];
                     f_write(str,sizeof(str),1,outFile);
                 }
                 free(permStr);
@@ -251,7 +268,7 @@ int ls(char ** command, int length, char * dest, int mode){
 
     for (int i = 1; i < length;i++ ) // looping through all files
     {
-        if (i == skip_idx) continue;
+        if (i == l_skip_idx || f_skip_idx == i) continue;
         int isMalloced;
         char * absPath = convertToAbsPath(command[i], &isMalloced);
         dir_handle * directory = f_opendir(absPath);
@@ -266,14 +283,18 @@ int ls(char ** command, int length, char * dest, int mode){
                 f_stat(file, stat_buf);
                 char str[1028];
                 char * permStr = arrayToPermStr(stat_buf->protection, stat_buf->is_dir);
-                sprintf(str,"%s %d %d %ld %s\n",permStr,stat_buf->uid,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+                if (dir_flag == 1 && stat_buf->is_dir == 1) sprintf(str,"%s %d %d %ld %s/\n",permStr,stat_buf->uid,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+                else sprintf(str,"%s %d %d %ld %s\n",permStr,stat_buf->uid,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+               
                 if (outFile == NULL) printf("%s",str);
                 else f_write(str,strlen(str)+1,1,outFile);
                 free(permStr);
                 }
                 else{  
                     char str[1028];
-                    sprintf(str,"%s\n", file->name);
+                    if (dir_flag == 1 && file->is_dir == 1)sprintf(str,"%s\n", file->name);
+                    else sprintf(str,"%s\n", file->name);
+                   
                     if (outFile == NULL) printf("%s",str);
                     else f_write(str,strlen(str)+1,1,outFile);
                 }
@@ -286,14 +307,18 @@ int ls(char ** command, int length, char * dest, int mode){
         while(curdir){
             if (l_flag != 1){
             char str[1028];
-            sprintf(str ,"%s\n", curdir->name);
+            if (dir_flag == 1 && curdir->is_directory == 1)sprintf(str,"%s\n", curdir->name);
+            else sprintf(str,"%s\n", curdir->name);
+                   
             if (outFile == NULL) printf("%s",str); //stdout
             else f_write(str,strlen(str)+1,1,outFile);
             }
             else{
                 char str[1028];
                 char * permStr = arrayToPermStr(curdir->protection, curdir->is_directory);
-                sprintf(str,"%s %d %d %d %s\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
+                if (dir_flag == 1 && curdir->is_directory == 1) sprintf(str,"%s %d %d %d %s/\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
+                else sprintf(str,"%s %d %d %d %s/\n",permStr,curdir->uid,curdir->first_FAT_idx,curdir->size,curdir->name);
+
                 if (outFile == NULL) printf("%s",str);
                 else f_write(str,strlen(str)+1,1,outFile);
                 free(permStr);
