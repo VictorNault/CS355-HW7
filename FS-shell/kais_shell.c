@@ -216,7 +216,9 @@ int main(){
             regfree(&nregex);
             regfree(&dashNRegex);
             fclose(redir_stdout);
+            fclose(indir_stdin);
             remove("./stdoutredir");
+            remove("./stdinindir");
             f_terminate();
             exit(EXIT_SUCCESS);
         } 
@@ -234,7 +236,7 @@ int main(){
         freopen("./stdoutredir","w+",redir_stdout);//CLEARING stdout
         freopen("./stdinindir","w+",indir_stdin);//CLEARING stdin
 
-     
+    
 
         destFile = NULL;
         char * trimmedCommand = trimStr(commandList[i]);
@@ -489,6 +491,8 @@ int main(){
             regfree(&dashNRegex);
             fclose(redir_stdout);
             remove("./stdoutredir");
+            fclose(indir_stdin);
+            remove("./stdinindr");
             f_terminate();
             exit(0);
         }
@@ -748,13 +752,13 @@ int main(){
             int status;
             do {
                 status = f_read(buf,1,1,inputFile);
-                printf("status: %d, %c\n",status, *buf);
-                printf("writeSuccess? %d\n", fwrite(buf,1,1,indir_stdin));
+                fwrite(buf, 1,1, indir_stdin);
                 }while (status != 0);
             f_close(inputFile);
+            freopen("./stdinindir","r+",indir_stdin);//CLEARING stdin
+
         }
         pid_t pid = fork();
-
         if (pid == 0){
             setpgrp();
             sigset_t newset;
@@ -785,7 +789,6 @@ int main(){
             setpgid(pid,pid);
             Process_Props * current_process = newProcess_Props_nt(pid, !background,commandList[i]);
             add(processes, current_process); //This doesn ot work since fork creates own address space :(
-            
             if (background == TRUE){
                 tcsetpgrp(STDIN_FILENO,shellPid);
                 printf("[%d]    %d\n",current_process->job_id,current_process->pid);
@@ -794,6 +797,7 @@ int main(){
             else{
                 tcsetpgrp(STDIN_FILENO,pid);
                 waitpid(pid,&status,WUNTRACED);
+                // dup2(saved_stdin,0);
                 if(WIFSTOPPED(status))current_process->hasTermios = TRUE;
                 tcsetattr(STDIN_FILENO, TCSADRAIN ,&shellTermios);
                 tcsetpgrp(STDIN_FILENO,shellPid);
