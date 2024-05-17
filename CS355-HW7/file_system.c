@@ -116,11 +116,14 @@ void set_file_size(file_handle *fh, int n){
 int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *parent_dir_FAT_idx){
     //returns 0 or 1 for a malloced file_header of the file we are trying to find
     dir_entry *cur_file = malloc(sizeof(dir_entry));
+    dir_entry * entry_arr = malloc(512);
+    fseek(disk,find_offset(dir->first_FAT_idx), SEEK_SET);
+    fread(entry_arr,512,1,disk);
     fseek(disk,find_offset(dir->first_FAT_idx) + FILE_HEADER_BYTES,SEEK_SET);
     fread(cur_file,sizeof(dir_entry),1,disk);
     int cur_idx = dir->first_FAT_idx;
     fat_entry *cur_fat = fat;
-    int total_size = FILE_HEADER_BYTES;
+    int total_size = FILE_HEADER_BYTES + 32;
     if (strcmp(name, ".") == 0){
         //printf("Successfully found file %s in directory %s\n",name,dir->name);
         if(parent_dir_FAT_idx){
@@ -132,7 +135,6 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
             return EXIT_SUCCESS;
     }
     else if (strcmp(name, "..") == 0){
-        total_size += sizeof(dir_entry);
         fread(cur_file,sizeof(dir_entry),1,disk);
         if(parent_dir_FAT_idx){
             *parent_dir_FAT_idx = dir->first_FAT_idx;
@@ -142,7 +144,8 @@ int find_file_from_directory(file_header *dir, fat_entry *fat, char *name, int *
         fread(dir,sizeof(file_header),1,disk);
         free(cur_file);
         return EXIT_SUCCESS;    
-    }
+    } 
+    fseek(disk,find_offset(cur_file->first_FAT_idx)+ total_size + sizeof(dir_entry) ,SEEK_SET);
     do{
         while(total_size < BLOCK_SIZE){
             // printf("%s, %d\n",cur_file->name, total_size);
@@ -508,6 +511,11 @@ int f_mkdir(const char *pathname, char *mode) {
     new_dir->size = new_dir_entry->size;
     new_dir->data_in_first_block[0] = *new_dir_entry;
     new_dir->data_in_first_block[1] = parent_dir->data_in_first_block[0];
+    dir_entry empty;
+    strcpy(empty.name,"\0\0\0\0\0\0\0\0");
+    for (int i = 2;  i< 15; i++){
+        new_dir->data_in_first_block[i] = empty;
+    }
     fseek(disk, find_offset(new_dir_block), SEEK_SET);
     fwrite(new_dir, BLOCK_SIZE, 1, disk);
     free(new_dir);
@@ -538,7 +546,7 @@ int f_mkfile(const char *pathname, char *mode) {
     //tokenizing the pathname 
     int token_length = 0;
     char** tokens = tokenize(pathname,&token_length,"/");
-    printf("name: %s len: %d\n",tokens[token_length-1], strlen(tokens[token_length-1])  );
+    printf("name: %s len: %ld\n",tokens[token_length-1], strlen(tokens[token_length-1])  );
     if ((strlen(tokens[token_length-1]) + 1) > NAME_BYTES) {
         //printf("Name too long, exiting f_mkfile...\n");
         f_error = E_BAD_NAME;
