@@ -3,7 +3,7 @@
 #include "stdio.h"
 #include "common.h"
 #include "node.h"
-#include "../CS355-HW7/file_system.h"
+#include "../backend/file_system.h"
 
 int cat(char ** files, int numFiles, char * dest,int mode);
 int ls(char ** command, int length, char * dest, int mode);

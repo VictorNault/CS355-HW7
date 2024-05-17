@@ -1,0 +1,156 @@
+Names: Kai Britt, Ben Jiang, Hilary Lutz, Victor Nault 
+
+To compile: 
+
+How to run: 
+
+Known Bugs/Limitations:
+
+Features/EC Summary:
+
+    DISK FORMAT:
+
+    Our disk is formatted in the following way: superblock -> fat table -> data blocks
+    
+    The superblock takes up one block, and contains:
+     the size of each block (512 bytes),
+     the block offset of the fat table (always 1), 
+     the block offset of the data region (always 17),
+     the fat index of the head of the free block list (can change, but on a freshly formatted disk is 1),
+     and padding so that the struct is block sized
+     
+    The fat table takes up 16 blocks, and is made up of structs that contain a single field, the next fat index of the file it's part of
+     The terminating block of files have "-1" as the value at their index in the fat table
+     Unused/free blocks have "-2" as the value at their index in the fat table
+    
+    Data blocks are of four different types: header block of a (regular) file, header block of a directory, non-header block of a (regular) file, and non-header block of a directory.
+    
+     The header blocks of files and directory are very similar, and share the following fields:
+      the name of the file/directory (9 bytes, so 8 bytes for the name and 1 byte for the null terminator)
+      is_directory (0 if the file is not a directory, 1 otherwise)
+      first_FAT_idx (index of the first block of the file/directory in the fat table)
+      size (size of the file/directory IN BYTES, an empty (regular) file will have a size of 32 (32 header bytes), an empty directory will have a size of 96 (32 header bytes, 32 bytes to contain information about . (itself), and 32 bytes to contain information about .. (parent directory) )
+      padding (16 bytes to align directory size with block size, also in file headers so that a block can be read into either and struct and still be correct
+      
+     The only difference in the header blocks are how the data is interpreted in C.
+     
+      A regular file's "data_in_first_block" field is a char array (480 elements). It can contain any arbitrary data, char was chosen for convienience of reading text data, and because char size is one byte.
+      A directory's "data_in_first_block" field is an array of dir_entry structs (15 elements).
+      
+        The dir_entry struct contains the following fields:
+         the name of the file/directory (same as header),
+         the size of the file/directory (same as header),
+         the uid of the owner of the file/directory (made upon creation, root directory automatically belongs to superuser, uid 101),
+         the protection bytes of the file/directory (similar format to Linux protection bits...
+          - First three bytes are read, write, and execute for file owner,
+          - Next three bytes are read, write, and execute for file owner's group (but we don't implement groups, so these bytes are in practice irrelevant),
+          - Next three bytes are read, write, and execute for the world (everyone),
+          - Final two bytes are padding and unused
+          - Each byte is 0 if the permission is not set, and 1 if the permission is set
+         )
+         and if the file is a directory or not (same as header)
+        And there will be a dir_entry struct for every file/directory within the directory.
+        
+      A non-header block of a (regular) file is just 512 arbitrary bytes. We read them in as chars for convienience of reading text data, and because char size is one byte.
+      A non-header block of a directory is an array of 16 dir_entry structs. 
+      
+    A new, freshly formatted disk will contain the following:
+     The superblock, with fields:
+      - size = 512
+      - table_offset = 1
+      - data_offset = 17
+      - free_block = 1
+      - padding
+     The fat table, with "next" of index 0 being -1, and next at all other indexes being -2
+     And the root directory, in the first data block, with the following fields:
+      - name = "root"
+      - is_directory = 1
+      - first_FAT_idx = 0
+      - size = 96
+      - padding
+      - data_in_first_block[0] = {
+                                 - name = "root"
+
+     
+    
+    
+    BACKEND:
+    1. Structs:
+        A. file_handle is created by f_open and is given to the frontend as an interface. It contains information
+        of the file and the current indexes for read and write.
+            struct file_handle{ 
+                char name[NAME_BYTES]; //name of file
+                u_int8_t is_dir; //is the file a directory
+                long cur_rindex; //current read index in bytes, -1 if opened in WRITEONLY
+                long cur_windex; //current write index in bytes, -1 if opened in READONLY
+                size_t size; //size of file in bytes
+                u_int16_t first_FAT_idx; //first FAT entry = first block of file
+                u_int16_t parent_FAT_idx; //first FAT entry of parent dir
+            };
+        
+            B. dir_handle is created by f_opendir, and behaves similarly to file_handle. It contains information of the 
+        directory and a dir_entry pointer to the current entry for f_readdir.
+            struct dir_handle { //24 bytes total
+                char name[NAME_BYTES]; //name of file
+                u_int8_t is_dir; //is the file a directory
+                size_t r_index; //current read index in bytes
+                dir_entry * cur_entry; //current dir_entry
+                size_t size; //size of file in bytes
+                u_int16_t first_FAT_idx; //first FAT entry = first block of file
+                u_int16_t parent_FAT_idx; //first FAT entry of parent dir
+            };
+
+    2. File System Functions:
+        A. file_handle *f_open(const char *pathname, const int mode)
+            f_open has two parameters: the absolute path of a file, and a mode (READONLY, WRITEONLY, READWRITE, APPEND).
+            It returns a file_handle that contains specific information of the opened file and appends items to the 
+            open file array. f_open contains error checking for bad pathnames and the case that the file that is to be
+            opened does not exist. It also checks the open file list to make sure the same file is not opened twice.
+
+            Errors: 
+            -E_FILE_NOT_FOUND is set for bad pathname or file is not found in READONLY mode
+            -E_FILE_ALREADY_OPEN is set if open file array already contain the same file
+        
+        B. size_t f_read(void *ptr, size_t size, size_t nmemb, file_handle *stream)
+            f_read has four parameters: a pointer to a buffer to read to, size to read, number of times to read, and 
+            the stream to read from. f_read returns the number of bytes successfully read, or an error. f_read checks for 
+            file permission (abort if it is opened in WRITEONLY) and user permission based on the protection bytes. 
+
+            Errors:
+            -E_NOT_FILE is set if stream is NULL or stream is a directory
+            -E_PERMISSION_DENIED is set if no reading permission or user permission
+            -E_OUT_OF_BOUNDS is set if trying to read from a location that doesn't belong to the file
+
+        C. size_t f_write(const void *ptr, size_t size, size_t nmemb, file_handle *stream)
+            f_write has four parameters: a pointer to a buffer to write from, size to write, number of times to write, and 
+            the stream to write to. f_write returns the number of bytes successfully written, or an error. f_write checks for 
+            file permission (abort if it is opened in READONLY) and user permission based on the protection bytes. In the 
+            case that the user seeks to a position outside of the file boundary and writes, f_write will add new blocks to
+            the file until the position is reached. In the case that the user writes outside of the last block of the file, 
+            f_write will also add a new block to the file and continue writing in the new block. f_write updates the size of the 
+            file accordingly. 
+
+            Errors:
+            -E_NOT_FILE is set if stream is NULL or stream is a directory
+            -E_PERMISSION_DENIED is set if no writing permission or user permission
+
+        D. int f_close(file_handle *stream)
+            f_close has one parameter: the file hande to close. f_close returns a status. If the file is found in open files array,
+            f_close erases the file in the array and cleans up, and returns EXIT_SUCCESS. If the file is not found, f_close returns
+            EXIT_FAILURE.
+        
+        E. int f_seek(file_handle *stream, long offset, int position)
+            f_seek has three parameters: the stream to seek, the offset to seek to, and the position to seek from. If position is
+            SEEK_SET, f_seek seeks from the start. If position is SEEK_CUR, f_seek seeks from current position. If position is 
+            SEEK_END, f_seek seeks backwards from end. f_seek essentially modifies the cur_rindex and cur_windex in the file handle,
+            adhering to the open mode. Upon success, f_seek returns EXIT_SUCCESS. If position is neither of those, f_seeks returns
+            EXIT_FAILURE. 
+
+        F. void f_rewind(file_handle *stream)
+            f_rewind has one parameter: 
+
+    FRONTEND:
+    
+
+
+File Directory: 
