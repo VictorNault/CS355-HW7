@@ -232,7 +232,7 @@ int main(){
         int numCmds; // number of semicolon seperated commands
         char ** commandList = tokenize2(commandToParse, &numCmds);
         for (int i = 0; i < numCmds; i++){
-        printf("F-Error: %d\n",f_error);
+        // printf("F-Error: %d\n",f_error);
         freopen("./stdoutredir","w+",redir_stdout);//CLEARING stdout
         freopen("./stdinindir","w+",indir_stdin);//CLEARING stdin
 
