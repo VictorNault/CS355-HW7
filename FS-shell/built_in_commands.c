@@ -215,8 +215,8 @@ int ls(char ** command, int length, char * dest, int mode){
             char * permStr = arrayToPermStr(stat_buf->protection, stat_buf->is_dir);
             char str[1028];
 
-            if(dir_flag == 1 && stat_buf->is_dir == 1) sprintf(str,"%s %d %d %ld %s/\n",permStr,stat_buf->is_dir,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
-            else sprintf(str,"%s %d %d %ld %s\n",permStr,stat_buf->is_dir,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+            if(dir_flag == 1 && stat_buf->is_dir == 1) sprintf(str,"%s %d %d %ld %s/\n",permStr,stat_buf->uid,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
+            else sprintf(str,"%s %d %d %ld %s\n",permStr,stat_buf->uid,stat_buf->first_FAT_idx,stat_buf->size,stat_buf->name);
 
             if (outFile == NULL) printf("%s",str);
             else f_write(str,strlen(str)+1,1,outFile);
