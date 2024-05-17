@@ -11,6 +11,7 @@ int cd(char ** command, int length);
 void mkdirFS(char ** command, int commandLength);
 void f_chmod(char ** commands,int length);
 int more(char ** command, int length, char * dest, int mode);
+void s_rmdir(char ** command, int commandLength);
 void pwd();
 void rm(char ** command, int commandLength);
 void bg(int pid);
